@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Panel de Contrôle Dialogue</title>
+  <style>
+    /* Reset minimal */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      padding: 20px;
+    }
+
+    h2 {
+      margin-bottom: 16px;
+      font-size: 24px;
+      text-align: center;
+    }
+
+    /* Conteneur global */
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 20px;
+    }
+
+    /* Sélecteur d’expression */
+    #exprPicker {
+      margin-bottom: 20px;
+    }
+    #exprPicker h3 {
+      margin-bottom: 8px;
+      font-size: 18px;
+    }
+    .expr-grid {
+      display: flex;
+      gap: 12px;
+    }
+    .expr-option {
+      width: 64px;
+      height: 64px;
+      object-fit: cover;
+      border: 3px solid transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.1s;
+    }
+    .expr-option:hover {
+      transform: scale(1.05);
+    }
+    .expr-option.selected {
+      border-color: #007acc;
+    }
+
+    /* Zone d’ajout */
+    #controls {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    #textInput {
+      flex: 1;
+      padding: 8px 12px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      padding: 8px 16px;
+      font-size: 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      background: #007acc;
+      color: #fff;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #005fa3;
+    }
+    button:disabled {
+      background: #aaa;
+      cursor: default;
+    }
+
+    /* Table de file */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    th, td {
+      padding: 8px 12px;
+      text-align: left;
+    }
+    thead th {
+      background: #e0e0e0;
+    }
+    tbody tr:nth-child(odd) {
+      background: #fafafa;
+    }
+    .removeBtn {
+      color: #d9534f;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .removeBtn:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Panel de Contrôle</h2>
+
+    <!-- Sélecteur d'émotion -->
+    <section id="exprPicker">
+      <h3>Choisissez une émotion :</h3>
+      <div class="expr-grid">
+        <img src="sans.png"  data-expr="sans"  alt="sans"  class="expr-option selected">
+        <img src="wink.png"  data-expr="wink"  alt="wink"  class="expr-option">
+        <img src="look.png"  data-expr="look"  alt="look"  class="expr-option">
+        <img src="funny.png" data-expr="funny" alt="funny" class="expr-option">
+      </div>
+    </section>
+
+    <!-- Contrôles -->
+    <div id="controls">
+      <input  type="text"   id="textInput" placeholder="Texte du dialogue…" />
+      <button id="addBtn">Ajouter</button>
+      <button id="nextBtn">Suivant</button>
+      <button id="pauseBtn">Pause</button>
+      <button id="clearBtn">Vider</button>
+    </div>
+
+    <!-- File actuelle -->
+    <table id="queueTable">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Expression</th>
+          <th>Texte</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket     = io();
+    const picker     = document.querySelectorAll('.expr-option');
+    const textInput  = document.getElementById('textInput');
+    const addBtn     = document.getElementById('addBtn');
+    const nextBtn    = document.getElementById('nextBtn');
+    const pauseBtn   = document.getElementById('pauseBtn');
+    const clearBtn   = document.getElementById('clearBtn');
+    const tbody      = document.querySelector('#queueTable tbody');
+
+    let currentExpr = 'sans';
+    let paused      = false;
+
+    // Sélection d'expression
+    picker.forEach(img => {
+      img.addEventListener('click', () => {
+        picker.forEach(i => i.classList.remove('selected'));
+        img.classList.add('selected');
+        currentExpr = img.dataset.expr;
+      });
+    });
+
+    // Événements UI → serveur
+    addBtn .addEventListener('click', () => {
+      const text = textInput.value.trim();
+      if (!text) return;
+      socket.emit('enqueue', { expr: currentExpr, text });
+      textInput.value = '';
+      textInput.focus();
+    });
+    nextBtn .addEventListener('click', () => socket.emit('next'));
+    pauseBtn.addEventListener('click', () => {
+      socket.emit(paused ? 'resume' : 'pause');
+    });
+    clearBtn.addEventListener('click', () => socket.emit('clearQueue'));
+
+    // Met à jour la table de file
+    function updateQueue(queue) {
+      tbody.innerHTML = '';
+      queue.forEach((item, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${i+1}</td>
+          <td>${item.expr}</td>
+          <td>${item.text}</td>
+          <td><span class="removeBtn" data-idx="${i}">×</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+      // bouton supprimer
+      tbody.querySelectorAll('.removeBtn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          socket.emit('remove', Number(btn.dataset.idx));
+        });
+      });
+    }
+
+    // Updates depuis le serveur → UI
+    socket.on('queueUpdated', updateQueue);
+    socket.on('paused', state => {
+      paused = state;
+      pauseBtn.textContent = paused ? 'Reprendre' : 'Pause';
+    });
+  </script>
+</body>
+</html>
