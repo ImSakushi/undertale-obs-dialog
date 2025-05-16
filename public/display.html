@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>OBS Display</title>
+  <style>
+
+    html, body {
+      zoom: 120%;
+    }
+    @font-face {
+      font-family: 'Determination Mono';
+      src: url('sans.woff2') format('woff2');
+    }
+    body {
+      margin: 0; padding: 0;
+      background: transparent;
+      overflow: hidden;
+    }
+    .undertale-dialogue {
+      position: absolute;
+      bottom: 20px; left: 20px;
+      width: 532px; height: 150px;
+      background-color: #000;
+      border: 5px solid #fff;
+      padding: 12px;
+      box-sizing: border-box;
+      display: none;
+      flex-direction: row;
+      align-items: center;
+      image-rendering: pixelated;
+      overflow: hidden;
+    }
+    .undertale-dialogue,
+    .undertale-dialogue img,
+    .undertale-dialogue .text {
+      image-rendering: pixelated;
+    }
+    .undertale-dialogue .avatar {
+      width: 80px; height: auto;
+      padding-left: 18px;
+      padding-bottom: 3px;
+    }
+    .undertale-dialogue .text {
+      font-family: 'Determination Mono', monospace;
+      color: #fff;
+      font-size: 28px;
+      line-height: 1.25;
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      width: calc(100% - 96px - 16px);
+      height: 100%;
+      padding-left: 43px;
+      padding-top: 10px;
+      text-transform: lowercase;
+      letter-spacing: 0.55px;
+      word-spacing: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div class="undertale-dialogue">
+    <img class="avatar" src="sans.png" alt="Sans">
+    <div id="textbox" class="text"></div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const SPEED     = 50;
+    const container = document.querySelector('.undertale-dialogue');
+    const avatar    = container.querySelector('.avatar');
+    const box       = document.getElementById('textbox');
+    let typing = false;
+  
+    function playBeep() {
+      const s = new Audio('voice_sans.mp3');
+      s.playbackRate = 0.8 + Math.random() * 0.4;
+      s.play();
+    }
+  
+    function showDialogue(expr, text) {
+      avatar.src = expr + '.png';
+      avatar.alt = expr;
+      container.style.display = 'flex';
+      box.textContent = '';
+      typing = true;
+      let i = 0;
+  
+    function typeChar() {
+      if (i < text.length) {
+        const c = text[i++];
+        box.textContent += c;
+        playBeep();
+        if (c === ',' || c === '!' || c === '?') {
+          setTimeout(typeChar, SPEED * 8);
+        } else {
+          setTimeout(typeChar, SPEED);
+        }
+      } else {
+        typing = false;
+      }
+    }
+      typeChar();
+    }
+  
+    function hideDialogue() {
+      container.style.display = 'none';
+      box.textContent = '';
+      typing = false;
+    }
+  
+    const socket = io();
+  
+    // ← ici on déstructure correctement l'objet
+    socket.on('dialogue', data => {
+      console.log('<< dialogue reçu du serveur :', data);
+      const { expr, text } = data;
+      showDialogue(expr, text);
+    });
+    socket.on('dialogue-hide', () => {
+      hideDialogue();
+    });
+  
+    // touche & pour passer au suivant
+    window.addEventListener('keydown', e => {
+      if (e.key === '&') {
+        socket.emit('next');
+      }
+    });
+  </script>
+  
+</body>
+</html>
