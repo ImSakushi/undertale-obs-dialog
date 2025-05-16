@@ -12,7 +12,7 @@ Ce projet permet d’afficher des dialogues à la *Undertale* dans OBS via la **
 
 ```bash
 git clone https://github.com/ImSakushi/undertale-obs-dialog.git
-cd utdialogtest
+cd undertale-obs-dialog
 ```
 
 ### 2. Installer les dépendances
