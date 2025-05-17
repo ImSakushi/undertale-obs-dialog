@@ -85,6 +85,15 @@ io.on('connection', socket => {
 
 // Lancement du serveur
 const PORT = 3000;
-server.listen(PORT, () => {
-  console.log(`🚀 Serveur lancé sur http://localhost:${PORT}`);
+server.listen(PORT, async () => {
+  const url = `http://localhost:${PORT}/control.html`;
+  console.log(`🚀 Serveur lancé sur ${url}`);
+
+  try {
+    // import dynamique de la version ESM de 'open'
+    const open = (await import('open')).default;
+    open(url);
+  } catch (err) {
+    console.warn('⚠️ Impossible d’ouvrir automatiquement le navigateur :', err);
+  }
 });
