@@ -28,7 +28,7 @@ function sendNext() {
     const { expr, text } = queue.shift();
     isDisplayed = true;
     console.log(`➡️  Affichage : [${expr}] ${text}`);
-    io.emit('dialogue', { expr, text: '* ' + text });
+    io.emit('dialogue', { expr, text: text });
     io.emit('queueUpdated', queue);
   }
 }

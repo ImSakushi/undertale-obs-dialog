@@ -44,24 +44,49 @@
     .undertale-dialogue .text {
       font-family: 'Determination Mono', monospace;
       color: #fff;
-      font-size: 28px;
+      font-size: 26px;
       line-height: 1.25;
       white-space: pre-wrap;
-      overflow-wrap: break-word;
-      word-break: break-word;
+      overflow-wrap: normal;
+      word-break: normal;
       width: calc(100% - 96px - 16px);
       height: 100%;
-      padding-left: 43px;
-      padding-top: 10px;
+      padding-left: 71px;
+      padding-top: 14px;
       text-transform: lowercase;
       letter-spacing: 0.55px;
-      word-spacing: 2px;
+      word-spacing: 3px;
     }
+
+    .undertale-dialogue {
+      /* on conserve position:absolute, flex, etc. */
+      display: none;
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      flex-direction: row;
+      align-items: center;
+    }
+
+    .undertale-dialogue .star {
+      font-family: 'Determination Mono', monospace;
+      color: #fff;
+      font-size: 28px;
+      line-height: 1.25;
+      flex: none;
+      margin: 0 12px;
+      user-select: none;
+      position: absolute;
+      left: 129px;
+      top: 17px;
+    }
+
   </style>
 </head>
 <body>
   <div class="undertale-dialogue">
     <img class="avatar" src="sans.png" alt="Sans">
+    <div class="star">*</div>
     <div id="textbox" class="text"></div>
   </div>
 
@@ -72,6 +97,48 @@
     const container = document.querySelector('.undertale-dialogue');
     const avatar    = container.querySelector('.avatar');
     const box       = document.getElementById('textbox');
+    function measureTextWidth(text) {
+      // Canvas caché
+      const canvas = measureTextWidth.canvas || (measureTextWidth.canvas = document.createElement('canvas'));
+      const ctx    = canvas.getContext('2d');
+      // on récupère la font effective de la boîte de texte
+      const style = window.getComputedStyle(box);
+      ctx.font = style.font;
+
+      // largeur "brute"
+      const metrics   = ctx.measureText(text);
+      const baseWidth = metrics.width;
+
+      // récupère les CSS values et parse en px
+      const letterSpacing = parseFloat(style.getPropertyValue('letter-spacing')) || 0;
+      const wordSpacing   = parseFloat(style.getPropertyValue('word-spacing'))   || 0;
+
+      // calcul des espacements supplémentaires
+      const additionalLetter = letterSpacing * Math.max(0, text.length - 1);
+      const spacesCount      = (text.match(/ /g) || []).length;
+      const additionalWord   = wordSpacing   * spacesCount;
+
+      return baseWidth + additionalLetter + additionalWord;
+    }
+
+    // Coupe le texte en lignes entières sans casser les mots
+    function wrapText(text, maxWidth) {
+      const words = text.split(' ');
+      const lines = [];
+      let   line  = '';
+
+      for (const word of words) {
+        const test = line ? line + ' ' + word : word;
+        if (measureTextWidth(test) <= maxWidth) {
+          line = test;
+        } else {
+          if (line) lines.push(line);
+          line = word;
+        }
+      }
+      if (line) lines.push(line);
+      return lines.join('\n');
+    }
     let typing = false;
   
     function playBeep() {
@@ -85,6 +152,7 @@
       avatar.alt = expr;
       container.style.display = 'flex';
       box.textContent = '';
+      text = wrapText(text, box.clientWidth);
       typing = true;
       let i = 0;
   
