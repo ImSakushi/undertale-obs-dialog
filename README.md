@@ -1,7 +1,3 @@
-Voici la traduction en anglais du README :
-
----
-
 # Undertale Dialogue Generator (for OBS)
 
 This project allows you to display *Undertale*-style dialogues in OBS using a **Browser Source**, with a **control panel** to manage emotions and the dialogue queue.
