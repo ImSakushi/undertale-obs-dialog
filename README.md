@@ -1,96 +1,100 @@
-# Undertale Dialogue Generator (pour OBS)
+Voici la traduction en anglais du README :
 
-Ce projet permet d’afficher des dialogues à la *Undertale* dans OBS via la **source Navigateur Web**, avec un **panel de contrôle** pour gérer les émotions et la file d'attente des répliques.
+---
 
-![image](https://github.com/user-attachments/assets/35f21bd5-8d6f-4f81-b3e7-143e0784a809)
+# Undertale Dialogue Generator (for OBS)
+
+This project allows you to display *Undertale*-style dialogues in OBS using a **Browser Source**, with a **control panel** to manage emotions and the dialogue queue.
+
+<img width="578" height="152" alt="image" src="https://github.com/user-attachments/assets/10898322-e824-4012-91e8-68ef0dda1182" />
 
 ---
 
 ## 🚀 Installation
 
-### 1. Cloner le projet
+### 1. Clone the project
 
 ```bash
 git clone https://github.com/ImSakushi/undertale-obs-dialog.git
 cd undertale-obs-dialog
 ```
 
-### 2. Installer les dépendances
+### 2. Install dependencies
 
 ```bash
 npm install
 ```
 
-### 3. Lancer le serveur
+### 3. Start the server
 
 ```bash
 npm start
 ```
 
-Cela démarre le serveur local sur `http://localhost:3000`.
+This will start the local server at `http://localhost:3000`.
 
 ---
 
-## 🎥 Intégration dans OBS
+## 🎥 Integrating with OBS
 
-1. **Ajouter une source "Navigateur" dans OBS**
-2. Donner un nom à la source (ex: `UndertaleDialogue`)
-3. Dans l'URL, entrez :
+1. **Add a "Browser" source in OBS**
+2. Give the source a name (e.g., `UndertaleDialogue`)
+3. In the URL field, enter:
 
 ```
 http://localhost:3000/display.html
 ```
 
-4. Définir la **largeur à 640** et la **hauteur à 200** (ou plus selon vos besoins)
-5. Cochez "Arrière-plan transparent" si vous le souhaitez
+4. Set the **width to 1920** and **height to 1080** (or adjust as needed)
+5. Check "Transparent background" if desired
 
-> 💡 Vous pouvez ajuster l’emplacement de la boîte de dialogue comme vous le voulez dans OBS.
+> 💡 You can move and resize the dialogue box freely within OBS.
 
 ---
 
-## 🕹️ Utiliser le panneau de contrôle
+## 🕹️ Using the Control Panel
 
-Ouvrez dans votre navigateur cette adresse :
+Open the following address in your browser:
 
 ```
 http://localhost:3000/control.html
 ```
 
-Depuis cette interface, vous pouvez :
+From this interface, you can:
 
-* Choisir une **émotion** (image de Sans)
-* Écrire un **texte de dialogue**
-* L’**ajouter à la file**
-* Passer au dialogue suivant (`Suivant`)
-* Mettre en **pause** / **reprendre**
-* **Vider** toute la file
-* Supprimer individuellement des répliques
-
----
-
-## 🧠 Raccourcis clavier
-
-* Sur OBS (ou `display.html`) :
-
-  * Appuyez sur la touche `&` (touche 1 en AZERTY) pour passer au dialogue suivant.
+* Choose an **emotion** (Sans image)
+* Write a **dialogue line**
+* **Add it to the queue**
+* Go to the **next line** (`Next`)
+* **Pause** / **resume** the flow
+* **Clear** the entire queue
+* Delete individual lines
 
 ---
 
-## 📁 Structure du projet
+## 🧠 Keyboard Shortcuts
+
+* On OBS (or `display.html`):
+
+  * Press the `&` key (key 1 on AZERTY keyboards) to skip to the next dialogue line.
+
+---
+
+## 📁 Project Structure
 
 ```text
 utdialogtest/
 ├── public/
-│   ├── control.html     # Panneau de contrôle pour gérer les dialogues
-│   ├── display.html     # Affichage OBS
-│   ├── *.png            # Images des émotions de Sans
-│   ├── voice_sans.mp3   # Effet sonore à chaque lettre
-│   └── sans.woff2       # Police pixel style Undertale
-├── server.js            # Serveur Node.js (Express + Socket.io)
-└── package.json         # Configuration du projet
+│   ├── control.html     # Control panel for managing dialogues
+│   ├── display.html     # Display page for OBS
+│   ├── *.png            # Emotion images of Sans
+│   ├── voice_sans.mp3   # Sound effect for each character
+│   └── sans.woff2       # Undertale-style pixel font
+├── server.js            # Node.js server (Express + Socket.io)
+└── package.json         # Project configuration
 ```
 
-## 🛠️ Dépendances
+## 🛠️ Dependencies
 
 * [express](https://www.npmjs.com/package/express)
 * [socket.io](https://www.npmjs.com/package/socket.io)
