@@ -41,6 +41,7 @@
     .expr-grid {
       display: flex;
       gap: 12px;
+      flex-wrap: wrap;
     }
     .expr-option {
       width: 64px;
@@ -114,6 +115,11 @@
     .removeBtn:hover {
       text-decoration: underline;
     }
+    /* Taille ajustée pour les expressions de Papyrus */
+    .expr-option[alt^="papyrus"] {
+      width: 62px;
+      height: 62px;
+    }
   </style>
 </head>
 <body>
@@ -124,14 +130,26 @@
     <section id="exprPicker">
       <h3>Choisissez une émotion :</h3>
       <div class="expr-grid">
-        <img src="img/sans-normal.png"  data-expr="img/sans-normal"  alt="sans"  class="expr-option selected">
-        <img src="img/sans-wink.png"  data-expr="img/sans-wink"  alt="wink"  class="expr-option">
-        <img src="img/sans-look.png"  data-expr="img/sans-look"  alt="look"  class="expr-option">
-        <img src="img/sans-funny.png" data-expr="img/sans-funny" alt="funny" class="expr-option">
-        <img src="img/sans-confused.png" data-expr="img/sans-confused" alt="confused" class="expr-option">
-        <img src="img/sans-closed-eyes.png" data-expr="img/sans-closed-eyes" alt="closed-eyes" class="expr-option">
-        <img src="img/sans-black-eyes.png" data-expr="img/sans-black-eyes" alt="black-eyes" class="expr-option">
-        <img src="img/sans-blue-eye.png" data-expr="img/sans-blue-eye" alt="blue-eye" class="expr-option">
+        <!-- EMOTIONS DE SANS -->
+        <img src="img/sans-normal.png"    data-expr="img/sans-normal"      alt="sans-normal"      class="expr-option selected">
+        <img src="img/sans-wink.png"      data-expr="img/sans-wink"        alt="sans-wink"        class="expr-option">
+        <img src="img/sans-look.png"      data-expr="img/sans-look"        alt="sans-look"        class="expr-option">
+        <img src="img/sans-funny.png"     data-expr="img/sans-funny"       alt="sans-funny"       class="expr-option">
+        <img src="img/sans-confused.png"  data-expr="img/sans-confused"    alt="sans-confused"    class="expr-option">
+        <img src="img/sans-closed-eyes.png" data-expr="img/sans-closed-eyes" alt="sans-closed-eyes" class="expr-option">
+        <img src="img/sans-black-eyes.png"  data-expr="img/sans-black-eyes"  alt="sans-black-eyes"  class="expr-option">
+        <img src="img/sans-blue-eye.png"    data-expr="img/sans-blue-eye"    alt="sans-blue-eye"    class="expr-option">
+        <!-- EMOTIONS DE TORIEL -->
+        <img src="img/toriel/toriel-default.png"     data-expr="img/toriel/toriel-default"     alt="toriel-default"      class="expr-option">
+        <img src="img/toriel/toriel-looking-away.png" data-expr="img/toriel/toriel-looking-away" alt="toriel-looking-away"  class="expr-option">
+        <img src="img/toriel/toriel-closed-eyes.png"  data-expr="img/toriel/toriel-closed-eyes"  alt="toriel-closed-eyes"   class="expr-option">
+        <img src="img/toriel/toriel-happy.png"        data-expr="img/toriel/toriel-happy"        alt="toriel-happy"        class="expr-option">
+        <img src="img/toriel/toriel-sad-smile.png"    data-expr="img/toriel/toriel-sad-smile"    alt="toriel-sad-smile"    class="expr-option">
+        <!-- EMOTIONS DE PAPYRUS -->
+        <img src="img/papyrus/papyrus-default.png"     data-expr="img/papyrus/papyrus-default"     alt="papyrus-default"      class="expr-option">
+        <img src="img/papyrus/papyrus-laugh.png"       data-expr="img/papyrus/papyrus-laugh"       alt="papyrus-laugh"        class="expr-option">
+        <img src="img/papyrus/papyrus-looking-away.png" data-expr="img/papyrus/papyrus-looking-away" alt="papyrus-looking-away"  class="expr-option">
+        <img src="img/papyrus/papyrus-mad.png"         data-expr="img/papyrus/papyrus-mad"         alt="papyrus-mad"          class="expr-option">
       </div>
     </section>
 
@@ -169,7 +187,8 @@
     const clearBtn   = document.getElementById('clearBtn');
     const tbody      = document.querySelector('#queueTable tbody');
 
-    let currentExpr = 'sans';
+    // Valeur par défaut : première image “sans-normal”
+    let currentExpr = 'img/sans-normal';
     let paused      = false;
 
     // Sélection d'expression
@@ -182,14 +201,14 @@
     });
 
     // Événements UI → serveur
-    addBtn .addEventListener('click', () => {
+    addBtn.addEventListener('click', () => {
       const text = textInput.value.trim();
       if (!text) return;
       socket.emit('enqueue', { expr: currentExpr, text });
       textInput.value = '';
       textInput.focus();
     });
-    nextBtn .addEventListener('click', () => socket.emit('next'));
+    nextBtn.addEventListener('click', () => socket.emit('next'));
     pauseBtn.addEventListener('click', () => {
       socket.emit(paused ? 'resume' : 'pause');
     });
@@ -201,7 +220,7 @@
       queue.forEach((item, i) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>${i+1}</td>
+          <td>${i + 1}</td>
           <td>${item.expr}</td>
           <td>${item.text}</td>
           <td><span class="removeBtn" data-idx="${i}">×</span></td>

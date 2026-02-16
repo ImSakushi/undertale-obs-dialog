@@ -8,10 +8,23 @@
     html, body {
       zoom: 120%;
     }
+
+    /* Police pour Sans (déjà existante) */
     @font-face {
       font-family: 'Determination Mono';
       src: url('sans.woff2') format('woff2');
     }
+    /* Police pour Toriel (DTM-Mono) */
+    @font-face {
+      font-family: 'DTM Mono';
+      src: url('DTM-Mono.ttf') format('truetype');
+    }
+    /* Police pour Papyrus */
+    @font-face {
+      font-family: 'Papyrus Undertale';
+      src: url('PapyrusUndertale.ttf') format('truetype');
+    }
+
     body {
       margin: 0; padding: 0;
       background: transparent;
@@ -37,16 +50,18 @@
       image-rendering: pixelated;
     }
     .undertale-dialogue .avatar {
-      width: 80px; height: auto;
+      /* Par défaut, 80px de large pour Sans */
+      width: 80px;
+      height: auto;
       padding-left: 18px;
       padding-bottom: 3px;
     }
     .undertale-dialogue .text {
+      /* Par défaut, police “Sans” */
       font-family: 'Determination Mono', monospace;
       color: #fff;
       font-size: 26px;
       line-height: 1.25;
-      white-space: pre-wrap;
       overflow-wrap: normal;
       word-break: normal;
       width: calc(100% - 96px - 16px);
@@ -58,18 +73,8 @@
       word-spacing: 3px;
     }
 
-    .undertale-dialogue {
-      /* on conserve position:absolute, flex, etc. */
-      display: none;
-      position: absolute;
-      bottom: 20px;
-      left: 20px;
-      flex-direction: row;
-      align-items: center;
-    }
-
     .undertale-dialogue .star {
-      font-family: 'Determination Mono', monospace;
+      font-family: 'DTM Mono', monospace;
       color: #fff;
       font-size: 28px;
       line-height: 1.25;
@@ -85,48 +90,42 @@
 </head>
 <body>
   <div class="undertale-dialogue">
-    <img class="avatar" src="img/sans.png" alt="Sans">
+    <img class="avatar" src="img/sans-normal.png" alt="Sans">
     <div class="star">*</div>
     <div id="textbox" class="text"></div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/socket.io/socket.io.js"></script>
   <script>
     const SPEED     = 50;
     const container = document.querySelector('.undertale-dialogue');
     const avatar    = container.querySelector('.avatar');
+    const star      = container.querySelector('.star');
     const box       = document.getElementById('textbox');
+
+    // Variable pour stocker la source audio en cours
+    let currentVoice = 'voice_sans.mp3';
+
+    // Mesure de texte pour gestion du wrap
     function measureTextWidth(text) {
-      // Canvas caché
       const canvas = measureTextWidth.canvas || (measureTextWidth.canvas = document.createElement('canvas'));
       const ctx    = canvas.getContext('2d');
-      // on récupère la font effective de la boîte de texte
-      const style = window.getComputedStyle(box);
+      const style  = window.getComputedStyle(box);
       ctx.font = style.font;
-
-      // largeur "brute"
-      const metrics   = ctx.measureText(text);
-      const baseWidth = metrics.width;
-
-      // récupère les CSS values et parse en px
-      const letterSpacing = parseFloat(style.getPropertyValue('letter-spacing')) || 0;
-      const wordSpacing   = parseFloat(style.getPropertyValue('word-spacing'))   || 0;
-
-      // calcul des espacements supplémentaires
+      const metrics         = ctx.measureText(text);
+      const baseWidth       = metrics.width;
+      const letterSpacing   = parseFloat(style.getPropertyValue('letter-spacing')) || 0;
+      const wordSpacing     = parseFloat(style.getPropertyValue('word-spacing'))   || 0;
       const additionalLetter = letterSpacing * Math.max(0, text.length - 1);
       const spacesCount      = (text.match(/ /g) || []).length;
-      const additionalWord   = wordSpacing   * spacesCount;
-
+      const additionalWord   = wordSpacing * spacesCount;
       return baseWidth + additionalLetter + additionalWord;
     }
 
-    // Coupe le texte en lignes entières sans casser les mots
     function wrapText(text, maxWidth) {
       const words = text.split(' ');
       const lines = [];
       let   line  = '';
-
       for (const word of words) {
         const test = line ? line + ' ' + word : word;
         if (measureTextWidth(test) <= maxWidth) {
@@ -139,49 +138,103 @@
       if (line) lines.push(line);
       return lines.join('\n');
     }
+
     let typing = false;
-  
+
     function playBeep() {
-      const s = new Audio('voice_sans.mp3');
+      const s = new Audio(currentVoice);
       s.playbackRate = 0.8 + Math.random() * 0.4;
       s.play();
     }
-  
+
     function showDialogue(expr, text) {
+      // Détermine l’avatar à charger
       avatar.src = expr + '.png';
       avatar.alt = expr;
+
+      // Cas Toriel : on élargit l'avatar et on change police + son
+      if (expr.startsWith('img/toriel/')) {
+        // Avatar plus large
+        avatar.style.width = '98px';
+        // Police Toriel
+        box.style.fontFamily = "'DTM Mono', monospace";
+        box.style.fontSize = '25px';
+        box.style.paddingLeft = '60px';
+        box.style.letterSpacing = 'normal';
+        box.style.wordSpacing = 'normal';
+        box.style.height = '100%';
+        box.style.lineHeight = '1.25';
+        box.style.textTransform = 'none';
+        // Son Toriel
+        currentVoice = 'voice_toriel.wav';
+        // Afficher l'étoile pour Toriel
+        star.style.display = 'block';
+      } else if (expr.startsWith('img/papyrus/')) {
+        // Cas Papyrus : avatar taille normale et police spéciale
+        avatar.style.width = '62px';
+        // Police Papyrus avec propriétés spécifiques
+        box.style.fontFamily = "'Papyrus Undertale', monospace";
+        box.style.fontSize = '29px';
+        box.style.paddingLeft = '47px';
+        box.style.letterSpacing = 'normal';
+        box.style.wordSpacing = '-1px';
+        box.style.height = '90%';
+        box.style.lineHeight = '1.15';
+        box.style.textTransform = 'uppercase';
+        // Son Papyrus
+        currentVoice = 'voice_Papyrus.wav';
+        // Convertir le texte en majuscules
+        text = text.toUpperCase();
+        // Masquer l'étoile pour Papyrus
+        star.style.display = 'none';
+      } else {
+        // Retour aux valeurs par défaut pour Sans
+        avatar.style.width      = '80px';
+        box.style.fontFamily    = "'Determination Mono', monospace";
+        box.style.fontSize      = '26px';
+        box.style.paddingLeft   = '71px';
+        box.style.letterSpacing = '0.55px';
+        box.style.wordSpacing   = '3px';
+        box.style.height        = '100%';
+        box.style.lineHeight    = '1.25';
+        box.style.textTransform = 'lowercase';
+        currentVoice = 'voice_sans.mp3';
+        // Afficher l'étoile pour Sans
+        star.style.display = 'block';
+      }
+
       container.style.display = 'flex';
       box.textContent = '';
+      // Gestion du wrap avec la largeur effective de la boîte
       text = wrapText(text, box.clientWidth);
       typing = true;
       let i = 0;
-  
-    function typeChar() {
-      if (i < text.length) {
-        const c = text[i++];
-        box.textContent += c;
-        playBeep();
-        if (c === ',' || c === '!' || c === '?') {
-          setTimeout(typeChar, SPEED * 8);
+
+      function typeChar() {
+        if (i < text.length) {
+          const c = text[i++];
+          box.textContent += c;
+          playBeep();
+          if (c === ',' || c === '!' || c === '?') {
+            setTimeout(typeChar, SPEED * 8);
+          } else {
+            setTimeout(typeChar, SPEED);
+          }
         } else {
-          setTimeout(typeChar, SPEED);
+          typing = false;
         }
-      } else {
-        typing = false;
       }
-    }
       typeChar();
     }
-  
+
     function hideDialogue() {
       container.style.display = 'none';
       box.textContent = '';
       typing = false;
     }
-  
+
     const socket = io();
-  
-    // ← ici on déstructure correctement l'objet
+
     socket.on('dialogue', data => {
       console.log('<< dialogue reçu du serveur :', data);
       const { expr, text } = data;
@@ -190,14 +243,14 @@
     socket.on('dialogue-hide', () => {
       hideDialogue();
     });
-  
-    // touche & pour passer au suivant
+
+    // Touche & pour passer au suivant
     window.addEventListener('keydown', e => {
       if (e.key === '&') {
         socket.emit('next');
       }
     });
   </script>
-  
+
 </body>
 </html>
