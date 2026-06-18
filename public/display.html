@@ -49,10 +49,11 @@
       white-space: pre-wrap;
       overflow-wrap: normal;
       word-break: normal;
-      width: calc(100% - 96px - 16px);
+      width: calc(100% - 96px);
       height: 100%;
+      box-sizing: border-box;
       padding-left: 71px;
-      padding-top: 14px;
+      padding-top: 8px;
       text-transform: lowercase;
       letter-spacing: 0.55px;
       word-spacing: 3px;
@@ -85,28 +86,35 @@
 </head>
 <body>
   <div class="undertale-dialogue">
-    <img class="avatar" src="img/sans.png" alt="Sans">
+    <img class="avatar" src="img/sans-normal.png" alt="Sans">
     <div class="star">*</div>
     <div id="textbox" class="text"></div>
   </div>
 
-  <script src="/socket.io/socket.io.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const SPEED     = 50;
     const container = document.querySelector('.undertale-dialogue');
     const avatar    = container.querySelector('.avatar');
     const box       = document.getElementById('textbox');
+    function getTextContentWidth() {
+      const style = window.getComputedStyle(box);
+      const paddingLeft = parseFloat(style.getPropertyValue('padding-left')) || 0;
+      const paddingRight = parseFloat(style.getPropertyValue('padding-right')) || 0;
+      return Math.max(0, box.clientWidth - paddingLeft - paddingRight);
+    }
+
     function measureTextWidth(text) {
       // Canvas caché
       const canvas = measureTextWidth.canvas || (measureTextWidth.canvas = document.createElement('canvas'));
       const ctx    = canvas.getContext('2d');
       // on récupère la font effective de la boîte de texte
       const style = window.getComputedStyle(box);
+      const renderedText = text.toLocaleLowerCase('fr');
       ctx.font = style.font;
 
       // largeur "brute"
-      const metrics   = ctx.measureText(text);
+      const metrics   = ctx.measureText(renderedText);
       const baseWidth = metrics.width;
 
       // récupère les CSS values et parse en px
@@ -114,18 +122,18 @@
       const wordSpacing   = parseFloat(style.getPropertyValue('word-spacing'))   || 0;
 
       // calcul des espacements supplémentaires
-      const additionalLetter = letterSpacing * Math.max(0, text.length - 1);
-      const spacesCount      = (text.match(/ /g) || []).length;
+      const additionalLetter = letterSpacing * Math.max(0, renderedText.length - 1);
+      const spacesCount      = (renderedText.match(/ /g) || []).length;
       const additionalWord   = wordSpacing   * spacesCount;
 
       return baseWidth + additionalLetter + additionalWord;
     }
 
     // Coupe le texte en lignes entières sans casser les mots
-    function wrapText(text, maxWidth) {
-      const words = text.split(' ');
+    function wrapParagraph(paragraph, maxWidth) {
+      const words = paragraph.trim().split(/\s+/).filter(Boolean);
       const lines = [];
-      let   line  = '';
+      let line = '';
 
       for (const word of words) {
         const test = line ? line + ' ' + word : word;
@@ -136,8 +144,16 @@
           line = word;
         }
       }
+
       if (line) lines.push(line);
-      return lines.join('\n');
+      return lines;
+    }
+
+    function wrapText(text, maxWidth) {
+      return text
+        .split(/\r?\n/)
+        .flatMap(paragraph => wrapParagraph(paragraph, maxWidth))
+        .join('\n');
     }
     let typing = false;
   
@@ -147,12 +163,15 @@
       s.play();
     }
   
-    function showDialogue(expr, text) {
+    async function showDialogue(expr, text) {
       avatar.src = expr + '.png';
       avatar.alt = expr;
       container.style.display = 'flex';
       box.textContent = '';
-      text = wrapText(text, box.clientWidth);
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+      text = wrapText(text, getTextContentWidth());
       typing = true;
       let i = 0;
   

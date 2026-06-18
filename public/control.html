@@ -122,7 +122,7 @@
 
     <!-- Sélecteur d'émotion -->
     <section id="exprPicker">
-      <h3>Choisissez une émotion :</h3>
+      <h3>Sans :</h3>
       <div class="expr-grid">
         <img src="img/sans-normal.png"  data-expr="img/sans-normal"  alt="sans"  class="expr-option selected">
         <img src="img/sans-wink.png"  data-expr="img/sans-wink"  alt="wink"  class="expr-option">
@@ -132,6 +132,13 @@
         <img src="img/sans-closed-eyes.png" data-expr="img/sans-closed-eyes" alt="closed-eyes" class="expr-option">
         <img src="img/sans-black-eyes.png" data-expr="img/sans-black-eyes" alt="black-eyes" class="expr-option">
         <img src="img/sans-blue-eye.png" data-expr="img/sans-blue-eye" alt="blue-eye" class="expr-option">
+      </div>
+      <h3 style="margin-top: 12px;">Papyrus :</h3>
+      <div class="expr-grid">
+        <img src="img/papyrus-default.png" data-expr="img/papyrus-default" alt="default" class="expr-option">
+        <img src="img/papyrus-laugh.png" data-expr="img/papyrus-laugh" alt="laugh" class="expr-option">
+        <img src="img/papyrus-looking-away.png" data-expr="img/papyrus-looking-away" alt="looking-away" class="expr-option">
+        <img src="img/papyrus-mad.png" data-expr="img/papyrus-mad" alt="mad" class="expr-option">
       </div>
     </section>
 
@@ -169,7 +176,7 @@
     const clearBtn   = document.getElementById('clearBtn');
     const tbody      = document.querySelector('#queueTable tbody');
 
-    let currentExpr = 'sans';
+    let currentExpr = 'img/sans-normal';
     let paused      = false;
 
     // Sélection d'expression
