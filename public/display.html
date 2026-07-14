@@ -136,11 +136,13 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="/voice-map.js"></script>
   <script>
     const SPEED = 50;
     const MAX_LINES = 3;
     const LINE_HEIGHT = 36;
     const PAUSE_CHARACTERS = new Set([',', '!', '?']);
+    const SOUNDLESS_CHARACTERS = new Set([' ', '\t', '\n', '^', '!', '.', '?', ',', ':', '/', '\\', '|', '*']);
 
     // Géométrie du rendu officiel (taille 2, 578×152) mesurée sur le moteur.
     const OFFICIAL = {
@@ -160,13 +162,15 @@
     const box = document.getElementById('textbox');
     const officialCanvas = container.querySelector('.official-canvas');
     const officialContext = officialCanvas.getContext('2d', { willReadFrequently: true });
-    const voice = new Audio('voice_sans.mp3');
+    const voiceCache = new Map();
 
     officialContext.imageSmoothingEnabled = false;
 
     let currentDialogueId = null;
     let sequence = 0;
     let typing = false;
+    let activeVoiceProfile = null;
+    let activeVoiceAudios = [];
 
     function isLegacyPapyrus(dialogue) {
       return String(dialogue.expr || '').split('/').pop().startsWith('papyrus-');
@@ -228,9 +232,42 @@
       return Array.from(text);
     }
 
-    function playBeep() {
-      const sound = voice.cloneNode();
-      sound.playbackRate = 0.8 + Math.random() * 0.4;
+    function audioFor(url) {
+      if (!voiceCache.has(url)) {
+        const sound = new Audio(url);
+        sound.preload = 'auto';
+        sound.preservesPitch = false;
+        sound.mozPreservesPitch = false;
+        sound.webkitPreservesPitch = false;
+        voiceCache.set(url, sound);
+      }
+      return voiceCache.get(url);
+    }
+
+    function stopVoice() {
+      for (const sound of activeVoiceAudios) {
+        sound.pause();
+        sound.currentTime = 0;
+      }
+    }
+
+    function prepareVoice(dialogue) {
+      stopVoice();
+      activeVoiceProfile = window.UTDR_VOICES.forDialogue(dialogue);
+      activeVoiceAudios = activeVoiceProfile?.clips.map(audioFor) || [];
+      for (const sound of activeVoiceAudios) sound.load();
+    }
+
+    function playBeep(character) {
+      if (!activeVoiceProfile || !character || SOUNDLESS_CHARACTERS.has(character)) return;
+
+      stopVoice();
+      const sound = activeVoiceAudios[Math.floor(Math.random() * activeVoiceAudios.length)];
+      if (!sound) return;
+
+      const [minPitch, maxPitch] = activeVoiceProfile.pitch || [1, 1];
+      sound.playbackRate = minPitch + Math.random() * (maxPitch - minPitch);
+      sound.volume = activeVoiceProfile.volume ?? 1;
       sound.play().catch(() => {});
     }
 
@@ -448,7 +485,7 @@
         if (step.character) {
           const from = Math.max(OFFICIAL.asteriskLeft, Math.floor(step.from) - 2);
           blit(from, bandTop, Math.ceil(step.to) - from, bandHeight);
-          playBeep();
+          playBeep(step.character);
           await delay(PAUSE_CHARACTERS.has(step.character) ? SPEED * 8 : SPEED);
         } else {
           await delay(SPEED);
@@ -559,7 +596,7 @@
       for (const step of steps) {
         if (token !== sequence) return;
         for (const element of step.elements) element.style.visibility = 'visible';
-        playBeep();
+        playBeep(step.character);
         await delay(PAUSE_CHARACTERS.has(step.character) ? SPEED * 8 : SPEED);
       }
     }
@@ -582,6 +619,7 @@
 
       currentDialogueId = dialogue.id;
       typing = true;
+      prepareVoice(dialogue);
 
       const image = dialogue.official ? await decodeOfficialImage(dialogue.official) : null;
       if (token !== sequence) return;
@@ -597,6 +635,9 @@
       sequence += 1;
       currentDialogueId = null;
       typing = false;
+      stopVoice();
+      activeVoiceProfile = null;
+      activeVoiceAudios = [];
       box.textContent = '';
       officialContext.clearRect(0, 0, OFFICIAL.width, OFFICIAL.height);
       container.classList.remove('is-visible', 'is-official');
