@@ -1,234 +1,825 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>Panel de Contrôle Dialogue</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>Undertale OBS — Contrôle</title>
   <style>
-    /* Reset minimal */
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f5f5f5;
-      color: #333;
-      padding: 20px;
+    @font-face {
+      font-family: DTM;
+      src: url("fonts/DTM-Mono.ttf") format("truetype");
+      font-display: swap;
     }
 
-    h2 {
+    :root {
+      color-scheme: dark;
+      --black: #000;
+      --white: #fff;
+      --muted: #8a8a8a;
+      --panel: #080808;
+      --yellow: #ff0;
+      --red: #f22;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      color: var(--white);
+      background: var(--black);
+      font: 16px/1.35 DTM, monospace;
+      font-smooth: never;
+      -webkit-font-smoothing: none;
+    }
+
+    button,
+    select,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    button,
+    select {
+      cursor: pointer;
+    }
+
+    button:focus-visible,
+    select:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible {
+      outline: 3px solid var(--yellow);
+      outline-offset: 2px;
+    }
+
+    .shell {
+      width: min(1440px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 50px;
+    }
+
+    header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 24px;
+      padding-bottom: 20px;
+      border-bottom: 4px solid var(--white);
+    }
+
+    h1,
+    h2,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: clamp(21px, 3vw, 34px);
+      font-weight: 400;
+    }
+
+    h1 span,
+    .section-title span {
+      color: var(--red);
+    }
+
+    #status {
+      color: var(--yellow);
+      font-size: 13px;
+      text-align: right;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(340px, .55fr);
+      gap: 28px;
+      padding-top: 28px;
+    }
+
+    .panel {
+      min-width: 0;
+      padding: 22px;
+      border: 3px solid #777;
+      background: var(--panel);
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
       margin-bottom: 16px;
-      font-size: 24px;
+    }
+
+    .section-title h2 {
+      font-size: 18px;
+      font-weight: 400;
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      min-width: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    select,
+    input,
+    textarea {
+      width: 100%;
+      border: 2px solid #777;
+      border-radius: 0;
+      color: var(--white);
+      background: var(--black);
+    }
+
+    select,
+    input {
+      min-height: 42px;
+      padding: 0 10px;
+    }
+
+    textarea {
+      min-height: 105px;
+      padding: 12px;
+      resize: vertical;
+      line-height: 1.45;
+    }
+
+    .search {
+      margin-bottom: 14px;
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
+      gap: 10px;
+      max-height: 410px;
+      padding: 2px;
+      overflow: auto;
+    }
+
+    .card {
+      display: grid;
+      grid-template-rows: 92px auto;
+      gap: 8px;
+      min-width: 0;
+      min-height: 132px;
+      padding: 8px;
+      border: 2px solid #555;
+      border-radius: 0;
+      color: #ddd;
+      background: var(--black);
+    }
+
+    .card:hover {
+      border-color: var(--yellow);
+      color: var(--yellow);
+    }
+
+    .card.selected {
+      border-color: var(--yellow);
+      color: var(--black);
+      background: var(--yellow);
+    }
+
+    .card-image {
+      display: grid;
+      place-items: center;
+      width: 100%;
+      height: 92px;
+      overflow: hidden;
+      background: #090909;
+    }
+
+    .card img {
+      max-width: 100%;
+      max-height: 100%;
+      image-rendering: pixelated;
+    }
+
+    .card strong {
+      min-width: 0;
+      overflow: hidden;
+      font-size: 12px;
+      font-weight: 400;
+      text-align: center;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .expression-section {
+      margin-top: 22px;
+    }
+
+    .character-meta {
+      margin: -7px 0 14px 28px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .composer {
+      position: sticky;
+      top: 18px;
+    }
+
+    .selection-preview {
+      display: grid;
+      grid-template-columns: 134px minmax(0, 1fr);
+      min-height: 140px;
+      margin-bottom: 18px;
+      border: 3px solid var(--white);
+      background: var(--black);
+    }
+
+    .selection-preview img {
+      width: 134px;
+      height: 140px;
+      object-fit: fill;
+      image-rendering: pixelated;
+    }
+
+    .selection-copy {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-width: 0;
+      padding: 14px;
+    }
+
+    .selection-copy strong {
+      overflow: hidden;
+      color: var(--yellow);
+      font-size: 18px;
+      font-weight: 400;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .selection-copy span {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .game-button {
+      min-height: 45px;
+      padding: 8px 12px;
+      border: 3px solid var(--white);
+      border-radius: 0;
+      color: var(--white);
+      background: var(--black);
+    }
+
+    .game-button:hover:not(:disabled) {
+      border-color: var(--yellow);
+      color: var(--yellow);
+    }
+
+    .game-button.primary {
+      grid-column: 1 / -1;
+      border-color: var(--yellow);
+      color: var(--yellow);
+    }
+
+    .game-button.primary:hover:not(:disabled) {
+      color: var(--black);
+      background: var(--yellow);
+    }
+
+    .game-button:disabled {
+      opacity: .35;
+      cursor: not-allowed;
+    }
+
+    .queue-panel {
+      grid-column: 1 / -1;
+    }
+
+    .queue-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .queue-item {
+      display: grid;
+      grid-template-columns: 40px 54px 180px minmax(0, 1fr) 42px;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      padding: 7px;
+      border: 2px solid #444;
+      background: #030303;
+    }
+
+    .queue-item img {
+      width: 54px;
+      height: 54px;
+      object-fit: cover;
+      image-rendering: pixelated;
+    }
+
+    .queue-item span,
+    .queue-item p {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .queue-item span {
+      color: var(--yellow);
+      font-size: 12px;
+    }
+
+    .remove {
+      width: 38px;
+      height: 38px;
+      border: 2px solid #777;
+      color: var(--red);
+      background: var(--black);
+    }
+
+    .empty {
+      padding: 30px 10px;
+      color: var(--muted);
       text-align: center;
     }
 
-    /* Conteneur global */
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-      background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      padding: 20px;
+    @media (max-width: 980px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .composer {
+        position: static;
+      }
     }
 
-    /* Sélecteur d’expression */
-    #exprPicker {
-      margin-bottom: 20px;
-    }
-    #exprPicker h3 {
-      margin-bottom: 8px;
-      font-size: 18px;
-    }
-    .expr-grid {
-      display: flex;
-      gap: 12px;
-    }
-    .expr-option {
-      width: 64px;
-      height: 64px;
-      object-fit: cover;
-      border: 3px solid transparent;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: border-color 0.2s, transform 0.1s;
-    }
-    .expr-option:hover {
-      transform: scale(1.05);
-    }
-    .expr-option.selected {
-      border-color: #007acc;
-    }
+    @media (max-width: 680px) {
+      .shell {
+        width: min(100% - 20px, 1440px);
+      }
 
-    /* Zone d’ajout */
-    #controls {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 20px;
-    }
-    #textInput {
-      flex: 1;
-      padding: 8px 12px;
-      font-size: 16px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-    button {
-      padding: 8px 16px;
-      font-size: 15px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      background: #007acc;
-      color: #fff;
-      transition: background 0.2s;
-    }
-    button:hover {
-      background: #005fa3;
-    }
-    button:disabled {
-      background: #aaa;
-      cursor: default;
-    }
+      header {
+        align-items: start;
+        flex-direction: column;
+      }
 
-    /* Table de file */
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-      font-size: 14px;
-    }
-    th, td {
-      padding: 8px 12px;
-      text-align: left;
-    }
-    thead th {
-      background: #e0e0e0;
-    }
-    tbody tr:nth-child(odd) {
-      background: #fafafa;
-    }
-    .removeBtn {
-      color: #d9534f;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    .removeBtn:hover {
-      text-decoration: underline;
+      #status {
+        text-align: left;
+      }
+
+      .filters {
+        grid-template-columns: 1fr;
+      }
+
+      .panel {
+        padding: 14px;
+      }
+
+      .queue-item {
+        grid-template-columns: 32px 46px minmax(0, 1fr) 38px;
+      }
+
+      .queue-item img {
+        width: 46px;
+        height: 46px;
+      }
+
+      .queue-item p {
+        display: none;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2>Panel de Contrôle</h2>
+  <div class="shell">
+    <header>
+      <h1><span>♥</span> UNDERTALE OBS DIALOG</h1>
+      <p id="status">Chargement du catalogue officiel…</p>
+    </header>
 
-    <!-- Sélecteur d'émotion -->
-    <section id="exprPicker">
-      <h3>Sans :</h3>
-      <div class="expr-grid">
-        <img src="img/sans-normal.png"  data-expr="img/sans-normal"  alt="sans"  class="expr-option selected">
-        <img src="img/sans-wink.png"  data-expr="img/sans-wink"  alt="wink"  class="expr-option">
-        <img src="img/sans-look.png"  data-expr="img/sans-look"  alt="look"  class="expr-option">
-        <img src="img/sans-funny.png" data-expr="img/sans-funny" alt="funny" class="expr-option">
-        <img src="img/sans-confused.png" data-expr="img/sans-confused" alt="confused" class="expr-option">
-        <img src="img/sans-closed-eyes.png" data-expr="img/sans-closed-eyes" alt="closed-eyes" class="expr-option">
-        <img src="img/sans-black-eyes.png" data-expr="img/sans-black-eyes" alt="black-eyes" class="expr-option">
-        <img src="img/sans-blue-eye.png" data-expr="img/sans-blue-eye" alt="blue-eye" class="expr-option">
-      </div>
-      <h3 style="margin-top: 12px;">Papyrus :</h3>
-      <div class="expr-grid">
-        <img src="img/papyrus-default.png" data-expr="img/papyrus-default" alt="default" class="expr-option">
-        <img src="img/papyrus-laugh.png" data-expr="img/papyrus-laugh" alt="laugh" class="expr-option">
-        <img src="img/papyrus-looking-away.png" data-expr="img/papyrus-looking-away" alt="looking-away" class="expr-option">
-        <img src="img/papyrus-mad.png" data-expr="img/papyrus-mad" alt="mad" class="expr-option">
-      </div>
-    </section>
+    <main class="workspace">
+      <section class="panel" aria-labelledby="catalogTitle">
+        <div class="section-title"><span>♥</span><h2 id="catalogTitle">CATALOGUE DU TEXT BOX GENERATOR</h2></div>
 
-    <!-- Contrôles -->
-    <div id="controls">
-      <input  type="text"   id="textInput" placeholder="Texte du dialogue…" />
-      <button id="addBtn">Ajouter</button>
-      <button id="nextBtn">Suivant</button>
-      <button id="pauseBtn">Pause</button>
-      <button id="clearBtn">Vider</button>
-    </div>
+        <div class="filters">
+          <label>CATÉGORIE<select id="group"><option>Chargement…</option></select></label>
+          <label id="universeField">UNIVERS<select id="universe"><option>Chargement…</option></select></label>
+          <label>RECHERCHE<input id="search" type="search" placeholder="Sans, Toriel, Ralsei…"></label>
+        </div>
 
-    <!-- File actuelle -->
-    <table id="queueTable">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Expression</th>
-          <th>Texte</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+        <div id="characterGallery" class="gallery" aria-label="Personnages"></div>
+
+        <section class="expression-section" aria-labelledby="expressionTitle">
+          <div class="section-title"><span>★</span><h2 id="expressionTitle">EXPRESSIONS</h2></div>
+          <p id="characterMeta" class="character-meta">Choisis un personnage.</p>
+          <div id="expressionGallery" class="gallery" aria-label="Expressions"></div>
+        </section>
+      </section>
+
+      <section class="panel composer" aria-labelledby="composerTitle">
+        <div class="section-title"><span>♥</span><h2 id="composerTitle">NOUVELLE RÉPLIQUE</h2></div>
+
+        <div class="selection-preview">
+          <img id="selectedImage" src="" alt="">
+          <div class="selection-copy">
+            <strong id="selectedCharacter">Aucun personnage</strong>
+            <span id="selectedExpression">Choisis une expression</span>
+          </div>
+        </div>
+
+        <label>DIALOGUE
+          <textarea id="textInput" placeholder="Écris ton dialogue ici…" spellcheck="false"></textarea>
+        </label>
+
+        <div class="actions">
+          <button id="addBtn" class="game-button primary" type="button" disabled>♥ AJOUTER À LA FILE</button>
+          <button id="nextBtn" class="game-button" type="button">SUIVANT</button>
+          <button id="pauseBtn" class="game-button" type="button">PAUSE</button>
+          <button id="clearBtn" class="game-button" type="button">VIDER</button>
+        </div>
+      </section>
+
+      <section class="panel queue-panel" aria-labelledby="queueTitle">
+        <div class="section-title"><span>★</span><h2 id="queueTitle">FILE D’ATTENTE</h2></div>
+        <div id="queueList" class="queue-list"><p class="empty">* La file est vide.</p></div>
+      </section>
+    </main>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    const socket     = io();
-    const picker     = document.querySelectorAll('.expr-option');
-    const textInput  = document.getElementById('textInput');
-    const addBtn     = document.getElementById('addBtn');
-    const nextBtn    = document.getElementById('nextBtn');
-    const pauseBtn   = document.getElementById('pauseBtn');
-    const clearBtn   = document.getElementById('clearBtn');
-    const tbody      = document.querySelector('#queueTable tbody');
+    const elements = {
+      status: document.getElementById('status'),
+      group: document.getElementById('group'),
+      universe: document.getElementById('universe'),
+      universeField: document.getElementById('universeField'),
+      search: document.getElementById('search'),
+      characterGallery: document.getElementById('characterGallery'),
+      expressionGallery: document.getElementById('expressionGallery'),
+      characterMeta: document.getElementById('characterMeta'),
+      selectedImage: document.getElementById('selectedImage'),
+      selectedCharacter: document.getElementById('selectedCharacter'),
+      selectedExpression: document.getElementById('selectedExpression'),
+      textInput: document.getElementById('textInput'),
+      addBtn: document.getElementById('addBtn'),
+      nextBtn: document.getElementById('nextBtn'),
+      pauseBtn: document.getElementById('pauseBtn'),
+      clearBtn: document.getElementById('clearBtn'),
+      queueList: document.getElementById('queueList')
+    };
 
-    let currentExpr = 'img/sans-normal';
-    let paused      = false;
+    const cache = {
+      groups: {},
+      universes: {},
+      characters: {}
+    };
 
-    // Sélection d'expression
-    picker.forEach(img => {
-      img.addEventListener('click', () => {
-        picker.forEach(i => i.classList.remove('selected'));
-        img.classList.add('selected');
-        currentExpr = img.dataset.expr;
+    const state = {
+      group: 'undertale',
+      universe: 'undertale',
+      character: null,
+      sprite: null,
+      paused: false
+    };
+
+    function formPayload(data) {
+      const form = new FormData();
+      for (const [key, value] of Object.entries(data)) form.append(key, JSON.stringify(value));
+      return form;
+    }
+
+    async function api(endpoint, data = {}) {
+      const response = await fetch(`/api/content/${endpoint}`, {
+        method: 'POST',
+        body: formPayload(data)
       });
-    });
+      const payload = await response.json();
+      if (!response.ok || payload.data == null) throw new Error(payload.msg || `Erreur ${response.status}`);
+      return payload.data;
+    }
 
-    // Événements UI → serveur
-    addBtn .addEventListener('click', () => {
-      const text = textInput.value.trim();
-      if (!text) return;
-      socket.emit('enqueue', { expr: currentExpr, text });
-      textInput.value = '';
-      textInput.focus();
-    });
-    nextBtn .addEventListener('click', () => socket.emit('next'));
-    pauseBtn.addEventListener('click', () => {
-      socket.emit(paused ? 'resume' : 'pause');
-    });
-    clearBtn.addEventListener('click', () => socket.emit('clearQueue'));
+    function setStatus(message, error = false) {
+      elements.status.textContent = message;
+      elements.status.style.color = error ? 'var(--red)' : 'var(--yellow)';
+    }
 
-    // Met à jour la table de file
+    function setOptions(select, entries, preferred) {
+      select.replaceChildren(...entries.map(entry => {
+        const option = document.createElement('option');
+        option.value = entry.value;
+        option.textContent = entry.label;
+        option.disabled = Boolean(entry.disabled);
+        return option;
+      }));
+      const available = entries.filter(entry => !entry.disabled).map(entry => entry.value);
+      select.value = available.includes(preferred) ? preferred : (available[0] || '');
+      return select.value;
+    }
+
+    function spritePreviewUrl(character, sprite) {
+      const metadata = character.sprites?.textbox?.[sprite];
+      const version = metadata?.last_edit ? `&v=${encodeURIComponent(metadata.last_edit.replace(' ', '_'))}` : '';
+      return `/api/sprite-preview.png?char=${encodeURIComponent(character.codename)}&exp=${encodeURIComponent(sprite)}&color=colored${version}`;
+    }
+
+    function availableSprites(character) {
+      return Object.entries(character?.sprites?.textbox || {})
+        .filter(([, sprite]) => sprite.shown !== false && !sprite.locked);
+    }
+
+    function firstSprite(character) {
+      return availableSprites(character)[0]?.[0] || null;
+    }
+
+    function makeCard({ code, label, image, selected }) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'card';
+      button.classList.toggle('selected', selected);
+      button.dataset.code = code;
+      button.title = label;
+
+      const imageBox = document.createElement('span');
+      imageBox.className = 'card-image';
+      const picture = document.createElement('img');
+      picture.src = image;
+      picture.alt = '';
+      picture.loading = 'lazy';
+      imageBox.append(picture);
+
+      const name = document.createElement('strong');
+      name.textContent = label;
+      button.append(imageBox, name);
+      return button;
+    }
+
+    function currentCharacters() {
+      const universe = cache.universes[state.universe];
+      if (!universe) return [];
+      return universe.characters
+        .map(code => cache.characters[code])
+        .filter(Boolean)
+        .filter(character => character.shown_textbox && !character.locked_textbox)
+        .filter(character => !['upload', 'avatar'].includes(character.codename))
+        .filter(character => availableSprites(character).length);
+    }
+
+    function renderCharacters() {
+      const query = elements.search.value.trim().toLocaleLowerCase('fr');
+      const characters = currentCharacters().filter(character =>
+        `${character.name} ${character.codename}`.toLocaleLowerCase('fr').includes(query)
+      );
+      const fragment = document.createDocumentFragment();
+
+      for (const character of characters) {
+        const sprite = firstSprite(character);
+        fragment.append(makeCard({
+          code: character.codename,
+          label: character.name,
+          image: spritePreviewUrl(character, sprite),
+          selected: character.codename === state.character
+        }));
+      }
+
+      elements.characterGallery.replaceChildren(fragment);
+      if (!characters.length) {
+        const empty = document.createElement('p');
+        empty.className = 'empty';
+        empty.textContent = '* Aucun personnage trouvé.';
+        elements.characterGallery.append(empty);
+      }
+    }
+
+    function selectCharacter(code, preferredSprite = null) {
+      const character = cache.characters[code];
+      if (!character) return;
+      state.character = code;
+      const sprites = availableSprites(character);
+      state.sprite = sprites.some(([sprite]) => sprite === preferredSprite) ? preferredSprite : sprites[0]?.[0];
+      renderCharacters();
+      renderExpressions();
+      updateSelection();
+    }
+
+    function renderExpressions() {
+      const character = cache.characters[state.character];
+      const fragment = document.createDocumentFragment();
+
+      for (const [code, sprite] of availableSprites(character)) {
+        fragment.append(makeCard({
+          code,
+          label: sprite.name || sprite.title || code,
+          image: spritePreviewUrl(character, code),
+          selected: code === state.sprite
+        }));
+      }
+
+      elements.expressionGallery.replaceChildren(fragment);
+      if (character) {
+        const asterisk = character.asterisk ? 'astérisque' : 'sans astérisque';
+        elements.characterMeta.textContent = `Police : ${character.font || 'auto'} · ${character.text_transform || 'aucune casse'} · ${asterisk}`;
+      }
+    }
+
+    function selectExpression(code) {
+      const character = cache.characters[state.character];
+      if (!character?.sprites?.textbox?.[code]) return;
+      state.sprite = code;
+      renderExpressions();
+      updateSelection();
+    }
+
+    function updateSelection() {
+      const character = cache.characters[state.character];
+      const sprite = character?.sprites?.textbox?.[state.sprite];
+      if (!character || !sprite) {
+        elements.addBtn.disabled = true;
+        return;
+      }
+
+      elements.selectedImage.src = spritePreviewUrl(character, state.sprite);
+      elements.selectedCharacter.textContent = character.name;
+      elements.selectedExpression.textContent = sprite.name || sprite.title || state.sprite;
+      elements.addBtn.disabled = false;
+    }
+
+    async function loadCharacters(universeCode) {
+      state.universe = universeCode;
+      const universe = cache.universes[universeCode];
+      if (!universe) return;
+      setStatus(`Chargement de ${universe.name}…`);
+
+      const missing = universe.characters.filter(code => !cache.characters[code]);
+      if (missing.length) {
+        Object.assign(cache.characters, await api('characters', { characters: missing, type: 'textbox' }));
+      }
+
+      const characters = currentCharacters();
+      const preferred = characters.some(character => character.codename === state.character)
+        ? state.character
+        : characters[0]?.codename;
+      if (preferred) selectCharacter(preferred);
+      else {
+        state.character = null;
+        state.sprite = null;
+        renderCharacters();
+        renderExpressions();
+        updateSelection();
+      }
+      setStatus(`${characters.length} personnages disponibles dans ${universe.name}.`);
+    }
+
+    async function loadUniverses(groupCode, preferredUniverse) {
+      state.group = groupCode;
+      const group = cache.groups[groupCode];
+      if (!group) return;
+      setStatus(`Chargement de ${group.name}…`);
+
+      const missing = group.universes.filter(code => !cache.universes[code]);
+      if (missing.length) {
+        Object.assign(cache.universes, await api('universes', { universes: missing, type: ['textbox'] }));
+      }
+
+      const universes = group.universes
+        .map(code => cache.universes[code])
+        .filter(Boolean)
+        .filter(universe => universe.shown_textbox && universe.characters?.length);
+
+      state.universe = setOptions(elements.universe, universes.map(universe => ({
+        value: universe.codename,
+        label: universe.name,
+        disabled: universe.locked_textbox
+      })), preferredUniverse);
+      elements.universeField.hidden = universes.length < 2;
+      await loadCharacters(state.universe);
+    }
+
+    async function loadCatalog() {
+      try {
+        cache.groups = await api('universe_groups');
+        const groups = Object.values(cache.groups)
+          .filter(group => group.shown_textbox && group.universes?.length);
+        state.group = setOptions(elements.group, groups.map(group => ({
+          value: group.codename,
+          label: group.name,
+          disabled: group.locked_textbox
+        })), state.group);
+        await loadUniverses(state.group, state.universe);
+      } catch (error) {
+        setStatus(error.message, true);
+      }
+    }
+
+    function enqueue() {
+      const text = elements.textInput.value.trim();
+      const character = cache.characters[state.character];
+      const sprite = character?.sprites?.textbox?.[state.sprite];
+      if (!text || !character || !sprite) return;
+
+      socket.emit('enqueue', {
+        text,
+        universeGroup: state.group,
+        universe: state.universe,
+        character: character.codename,
+        characterName: character.name,
+        sprite: state.sprite,
+        spriteName: sprite.name || sprite.title || state.sprite,
+        previewUrl: spritePreviewUrl(character, state.sprite),
+        font: character.font || 'determination',
+        asterisk: Boolean(character.asterisk),
+        textTransform: character.text_transform || 'none'
+      });
+      elements.textInput.value = '';
+      elements.textInput.focus();
+    }
+
     function updateQueue(queue) {
-      tbody.innerHTML = '';
-      queue.forEach((item, i) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${i+1}</td>
-          <td>${item.expr}</td>
-          <td>${item.text}</td>
-          <td><span class="removeBtn" data-idx="${i}">×</span></td>
-        `;
-        tbody.appendChild(tr);
-      });
-      // bouton supprimer
-      tbody.querySelectorAll('.removeBtn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          socket.emit('remove', Number(btn.dataset.idx));
-        });
+      elements.queueList.replaceChildren();
+      if (!queue.length) {
+        const empty = document.createElement('p');
+        empty.className = 'empty';
+        empty.textContent = '* La file est vide.';
+        elements.queueList.append(empty);
+        return;
+      }
+
+      queue.forEach((item, index) => {
+        const row = document.createElement('div');
+        row.className = 'queue-item';
+
+        const number = document.createElement('b');
+        number.textContent = String(index + 1);
+        const image = document.createElement('img');
+        image.src = item.previewUrl || `${item.expr}.png`;
+        image.alt = '';
+        const name = document.createElement('span');
+        name.textContent = `${item.characterName || item.expr} · ${item.spriteName || ''}`;
+        const dialogue = document.createElement('p');
+        dialogue.textContent = item.text;
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'remove';
+        remove.textContent = '×';
+        remove.title = 'Retirer de la file';
+        remove.addEventListener('click', () => socket.emit('remove', index));
+        row.append(number, image, name, dialogue, remove);
+        elements.queueList.append(row);
       });
     }
 
-    // Updates depuis le serveur → UI
-    socket.on('queueUpdated', updateQueue);
-    socket.on('paused', state => {
-      paused = state;
-      pauseBtn.textContent = paused ? 'Reprendre' : 'Pause';
+    elements.group.addEventListener('change', () => loadUniverses(elements.group.value));
+    elements.universe.addEventListener('change', () => loadCharacters(elements.universe.value));
+    elements.search.addEventListener('input', renderCharacters);
+    elements.characterGallery.addEventListener('click', event => {
+      const card = event.target.closest('.card');
+      if (card) selectCharacter(card.dataset.code);
     });
+    elements.expressionGallery.addEventListener('click', event => {
+      const card = event.target.closest('.card');
+      if (card) selectExpression(card.dataset.code);
+    });
+    elements.addBtn.addEventListener('click', enqueue);
+    elements.nextBtn.addEventListener('click', () => socket.emit('next'));
+    elements.pauseBtn.addEventListener('click', () => socket.emit(state.paused ? 'resume' : 'pause'));
+    elements.clearBtn.addEventListener('click', () => socket.emit('clearQueue'));
+    elements.textInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) enqueue();
+    });
+
+    const socket = io();
+    socket.on('queueUpdated', updateQueue);
+    socket.on('paused', paused => {
+      state.paused = paused;
+      elements.pauseBtn.textContent = paused ? 'REPRENDRE' : 'PAUSE';
+    });
+
+    loadCatalog();
   </script>
 </body>
 </html>

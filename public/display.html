@@ -1,147 +1,227 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>OBS Display</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>Undertale OBS Display</title>
   <style>
+    @font-face { font-family: DTM; src: url("fonts/DTM-Mono.ttf") format("truetype"); font-display: block; }
+    @font-face { font-family: UndertaleSans; src: url("fonts/UndertaleSans.ttf") format("truetype"); font-display: block; }
+    @font-face { font-family: UndertalePapyrus; src: url("fonts/PapyrusUndertale.ttf") format("truetype"); font-display: block; }
+    @font-face { font-family: UndertaleWingdings; src: url("fonts/PixelatedWingdings.ttf") format("truetype"); font-display: block; }
+    @font-face { font-family: Earthbound; src: url("fonts/EBMain.ttf") format("truetype"); font-display: block; }
+    @font-face { font-family: DTMExtended; src: url("fonts/Determination-Extended.ttf") format("truetype"); font-display: block; }
+    @font-face { font-family: UbuntuPixel; src: url("fonts/Ubuntu-Regular.ttf") format("truetype"); font-display: block; }
 
-    html, body {
-      zoom: 120%;
-    }
-    @font-face {
-      font-family: 'Determination Mono';
-      src: url('sans.woff2') format('woff2');
-    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    html,
     body {
-      margin: 0; padding: 0;
-      background: transparent;
-      overflow: hidden;
-    }
-    .undertale-dialogue {
-      position: absolute;
-      bottom: 20px; left: 20px;
-      width: 532px; height: 150px;
-      background-color: #000;
-      border: 5px solid #fff;
-      padding: 12px;
-      box-sizing: border-box;
-      display: none;
-      flex-direction: row;
-      align-items: center;
-      image-rendering: pixelated;
-      overflow: hidden;
-    }
-    .undertale-dialogue,
-    .undertale-dialogue img,
-    .undertale-dialogue .text {
-      image-rendering: pixelated;
-    }
-    .undertale-dialogue .avatar {
-      width: 80px; height: auto;
-      padding-left: 18px;
-      padding-bottom: 3px;
-    }
-    .undertale-dialogue .text {
-      font-family: 'Determination Mono', monospace;
-      color: #fff;
-      font-size: 26px;
-      line-height: 1.25;
-      white-space: pre-wrap;
-      overflow-wrap: normal;
-      word-break: normal;
-      width: calc(100% - 96px);
+      width: 100%;
       height: 100%;
-      box-sizing: border-box;
-      padding-left: 71px;
-      padding-top: 8px;
-      text-transform: lowercase;
-      letter-spacing: 0.55px;
-      word-spacing: 3px;
+      margin: 0;
+      overflow: hidden;
+      background: transparent;
+    }
+
+    body {
+      font-smooth: never;
+      -webkit-font-smoothing: none;
     }
 
     .undertale-dialogue {
-      /* on conserve position:absolute, flex, etc. */
-      display: none;
       position: absolute;
       bottom: 20px;
       left: 20px;
-      flex-direction: row;
-      align-items: center;
+      display: none;
+      width: 578px;
+      height: 152px;
+      overflow: hidden;
+      image-rendering: pixelated;
     }
 
-    .undertale-dialogue .star {
-      font-family: 'Determination Mono', monospace;
-      color: #fff;
-      font-size: 28px;
-      line-height: 1.25;
-      flex: none;
-      margin: 0 12px;
-      user-select: none;
+    .undertale-dialogue.is-visible { display: block; }
+
+    .fallback-render {
       position: absolute;
-      left: 129px;
-      top: 17px;
+      inset: 0;
+      overflow: hidden;
+      border: 6px solid #fff;
+      color: #fff;
+      background: #040204;
     }
 
+    .sprite-slot {
+      position: absolute;
+      inset: 0 auto auto 0;
+      display: grid;
+      place-items: center;
+      width: 134px;
+      height: 140px;
+      overflow: hidden;
+    }
+
+    .avatar {
+      display: block;
+      width: 134px;
+      height: 140px;
+      max-width: none;
+      max-height: none;
+      object-fit: fill;
+      image-rendering: pixelated;
+    }
+
+    .avatar.legacy {
+      width: auto;
+      height: auto;
+      object-fit: initial;
+      transform: scale(2);
+    }
+
+    .text-layer {
+      position: absolute;
+      top: 12px;
+      left: 138px;
+      display: block;
+      width: 520px;
+      height: 116px;
+      min-height: 0;
+      padding: 0 0 0 40px;
+      overflow: hidden;
+      font: 33px/40px DTM, monospace;
+      letter-spacing: 0;
+      text-indent: -40px;
+      white-space: pre-wrap;
+      transform: scale(.8, .9);
+      transform-origin: top left;
+    }
+
+    .asterisk::after { content: " "; }
+
+    .official-render {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      display: block;
+      width: 578px;
+      height: 152px;
+      opacity: 0;
+      object-fit: fill;
+      pointer-events: none;
+      image-rendering: pixelated;
+    }
+
+    .undertale-dialogue.is-official .official-render { opacity: 1; }
   </style>
 </head>
 <body>
-  <div class="undertale-dialogue">
-    <img class="avatar" src="img/sans-normal.png" alt="Sans">
-    <div class="star">*</div>
-    <div id="textbox" class="text"></div>
+  <div class="undertale-dialogue" aria-live="polite">
+    <div class="fallback-render">
+      <div class="sprite-slot">
+        <img class="avatar legacy" src="img/sans-normal.png" alt="">
+      </div>
+      <div class="text-layer">
+        <span class="asterisk">*</span><span id="textbox"></span>
+      </div>
+    </div>
+    <img class="official-render" alt="">
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    const SPEED     = 50;
+    const SPEED = 50;
+    const MAX_TEXT_WIDTH = 480;
+    const MAX_LINES = 3;
+    const PAUSE_CHARACTERS = new Set([',', '!', '?']);
+
     const container = document.querySelector('.undertale-dialogue');
-    const avatar    = container.querySelector('.avatar');
-    const box       = document.getElementById('textbox');
-    function getTextContentWidth() {
-      const style = window.getComputedStyle(box);
-      const paddingLeft = parseFloat(style.getPropertyValue('padding-left')) || 0;
-      const paddingRight = parseFloat(style.getPropertyValue('padding-right')) || 0;
-      return Math.max(0, box.clientWidth - paddingLeft - paddingRight);
+    const avatar = container.querySelector('.avatar');
+    const asterisk = container.querySelector('.asterisk');
+    const textLayer = container.querySelector('.text-layer');
+    const box = document.getElementById('textbox');
+    const officialRender = container.querySelector('.official-render');
+    const voice = new Audio('voice_sans.mp3');
+
+    let currentDialogueId = null;
+    let sequence = 0;
+    let typing = false;
+    let officialReady = false;
+
+    function isLegacyPapyrus(dialogue) {
+      return String(dialogue.expr || '').split('/').pop().startsWith('papyrus-');
+    }
+
+    function fontFamilyFor(code) {
+      const value = String(code || 'determination').toLocaleLowerCase('en');
+      if (value.includes('papyrus')) return 'UndertalePapyrus, DTM, monospace';
+      if (value.includes('wing')) return 'UndertaleWingdings, DTM, monospace';
+      if (value.includes('sans')) return 'UndertaleSans, DTM, monospace';
+      if (value.includes('earth') || value.includes('ebmain')) return 'Earthbound, DTM, monospace';
+      if (value.includes('ubuntu')) return 'UbuntuPixel, DTM, monospace';
+      if (value.includes('extended') || value.includes('determination-ex')) return 'DTMExtended, DTM, monospace';
+      return 'DTM, monospace';
+    }
+
+    function titleCase(value) {
+      return value.replace(/(^|\s)(\p{L})/gu, (_, prefix, letter) => prefix + letter.toLocaleUpperCase('fr'));
+    }
+
+    function transformDialogue(text, transform) {
+      const value = String(text || '');
+      if (transform === 'uppercase') return value.toLocaleUpperCase('fr');
+      if (transform === 'lowercase') return value.toLocaleLowerCase('fr');
+      if (transform === 'title') return titleCase(value);
+      return value;
     }
 
     function measureTextWidth(text) {
-      // Canvas caché
       const canvas = measureTextWidth.canvas || (measureTextWidth.canvas = document.createElement('canvas'));
-      const ctx    = canvas.getContext('2d');
-      // on récupère la font effective de la boîte de texte
-      const style = window.getComputedStyle(box);
-      const renderedText = text.toLocaleLowerCase('fr');
-      ctx.font = style.font;
-
-      // largeur "brute"
-      const metrics   = ctx.measureText(renderedText);
-      const baseWidth = metrics.width;
-
-      // récupère les CSS values et parse en px
-      const letterSpacing = parseFloat(style.getPropertyValue('letter-spacing')) || 0;
-      const wordSpacing   = parseFloat(style.getPropertyValue('word-spacing'))   || 0;
-
-      // calcul des espacements supplémentaires
-      const additionalLetter = letterSpacing * Math.max(0, renderedText.length - 1);
-      const spacesCount      = (renderedText.match(/ /g) || []).length;
-      const additionalWord   = wordSpacing   * spacesCount;
-
-      return baseWidth + additionalLetter + additionalWord;
+      const context = canvas.getContext('2d');
+      const style = getComputedStyle(textLayer);
+      context.font = `${style.fontSize} ${style.fontFamily}`;
+      return context.measureText(text).width;
     }
 
-    // Coupe le texte en lignes entières sans casser les mots
+    function splitLongWord(word, maxWidth) {
+      const chunks = [];
+      let chunk = '';
+
+      for (const character of word) {
+        const candidate = chunk + character;
+        if (chunk && measureTextWidth(candidate) > maxWidth) {
+          chunks.push(chunk);
+          chunk = character;
+        } else {
+          chunk = candidate;
+        }
+      }
+
+      if (chunk) chunks.push(chunk);
+      return chunks;
+    }
+
     function wrapParagraph(paragraph, maxWidth) {
-      const words = paragraph.trim().split(/\s+/).filter(Boolean);
+      if (!paragraph.trim()) return [''];
+
+      const words = paragraph.trim().split(/\s+/);
       const lines = [];
       let line = '';
 
-      for (const word of words) {
-        const test = line ? line + ' ' + word : word;
-        if (measureTextWidth(test) <= maxWidth) {
-          line = test;
-        } else {
-          if (line) lines.push(line);
-          line = word;
+      for (const originalWord of words) {
+        const pieces = measureTextWidth(originalWord) > maxWidth
+          ? splitLongWord(originalWord, maxWidth)
+          : [originalWord];
+
+        for (const word of pieces) {
+          const candidate = line ? `${line} ${word}` : word;
+          if (!line || measureTextWidth(candidate) <= maxWidth) {
+            line = candidate;
+          } else {
+            lines.push(line);
+            line = word;
+          }
         }
       }
 
@@ -149,74 +229,97 @@
       return lines;
     }
 
-    function wrapText(text, maxWidth) {
+    function wrapText(text) {
       return text
         .split(/\r?\n/)
-        .flatMap(paragraph => wrapParagraph(paragraph, maxWidth))
+        .flatMap(paragraph => wrapParagraph(paragraph, MAX_TEXT_WIDTH))
+        .slice(0, MAX_LINES)
         .join('\n');
     }
-    let typing = false;
-  
+
     function playBeep() {
-      const s = new Audio('voice_sans.mp3');
-      s.playbackRate = 0.8 + Math.random() * 0.4;
-      s.play();
+      const sound = voice.cloneNode();
+      sound.playbackRate = 0.8 + Math.random() * 0.4;
+      sound.play().catch(() => {});
     }
-  
-    async function showDialogue(expr, text) {
-      avatar.src = expr + '.png';
-      avatar.alt = expr;
-      container.style.display = 'flex';
-      box.textContent = '';
-      if (document.fonts && document.fonts.ready) {
-        await document.fonts.ready;
-      }
-      text = wrapText(text, getTextContentWidth());
+
+    function delay(milliseconds) {
+      return new Promise(resolve => setTimeout(resolve, milliseconds));
+    }
+
+    function showOfficialRenderIfReady() {
+      if (!typing && officialReady) container.classList.add('is-official');
+    }
+
+    async function showDialogue(dialogue) {
+      const token = ++sequence;
+      const legacyPapyrus = isLegacyPapyrus(dialogue);
+      const isLegacy = !dialogue.previewUrl;
+      const textTransform = dialogue.textTransform || (legacyPapyrus ? 'uppercase' : 'lowercase');
+      const showAsterisk = typeof dialogue.asterisk === 'boolean' ? dialogue.asterisk : !legacyPapyrus;
+
+      currentDialogueId = dialogue.id;
       typing = true;
-      let i = 0;
-  
-    function typeChar() {
-      if (i < text.length) {
-        const c = text[i++];
-        box.textContent += c;
-        playBeep();
-        if (c === ',' || c === '!' || c === '?') {
-          setTimeout(typeChar, SPEED * 8);
-        } else {
-          setTimeout(typeChar, SPEED);
-        }
-      } else {
-        typing = false;
-      }
-    }
-      typeChar();
-    }
-  
-    function hideDialogue() {
-      container.style.display = 'none';
+      officialReady = false;
+      container.classList.remove('is-official');
+      container.classList.add('is-visible');
+      officialRender.removeAttribute('src');
+      avatar.classList.toggle('legacy', isLegacy);
+      avatar.src = dialogue.previewUrl || `${dialogue.expr}.png`;
+      avatar.alt = dialogue.characterName || '';
+      asterisk.hidden = !showAsterisk;
+      textLayer.style.fontFamily = fontFamilyFor(dialogue.font || (legacyPapyrus ? 'papyrus' : 'sans'));
       box.textContent = '';
-      typing = false;
-    }
-  
-    const socket = io();
-  
-    // ← ici on déstructure correctement l'objet
-    socket.on('dialogue', data => {
-      console.log('<< dialogue reçu du serveur :', data);
-      const { expr, text } = data;
-      showDialogue(expr, text);
-    });
-    socket.on('dialogue-hide', () => {
-      hideDialogue();
-    });
-  
-    // touche & pour passer au suivant
-    window.addEventListener('keydown', e => {
-      if (e.key === '&') {
-        socket.emit('next');
+
+      if (document.fonts && document.fonts.ready) await document.fonts.ready;
+      if (token !== sequence) return;
+
+      const renderedText = wrapText(transformDialogue(dialogue.text, textTransform));
+      for (const character of renderedText) {
+        if (token !== sequence) return;
+        box.textContent += character;
+        playBeep();
+        await delay(PAUSE_CHARACTERS.has(character) ? SPEED * 8 : SPEED);
       }
+
+      if (token !== sequence) return;
+      typing = false;
+      showOfficialRenderIfReady();
+    }
+
+    function loadOfficialRender({ id, image }) {
+      if (id !== currentDialogueId || !image) return;
+
+      const preload = new Image();
+      preload.src = image;
+      preload.decode()
+        .catch(() => {})
+        .then(() => {
+          if (id !== currentDialogueId) return;
+          officialRender.src = image;
+          officialReady = true;
+          showOfficialRenderIfReady();
+        });
+    }
+
+    function hideDialogue() {
+      sequence += 1;
+      currentDialogueId = null;
+      typing = false;
+      officialReady = false;
+      box.textContent = '';
+      officialRender.removeAttribute('src');
+      container.classList.remove('is-visible', 'is-official');
+    }
+
+    const socket = io();
+    socket.on('dialogue', showDialogue);
+    socket.on('dialogue-rendered', loadOfficialRender);
+    socket.on('dialogue-hide', hideDialogue);
+
+    window.addEventListener('keydown', event => {
+      if (event.key === '&') socket.emit('next');
     });
   </script>
-  
 </body>
 </html>

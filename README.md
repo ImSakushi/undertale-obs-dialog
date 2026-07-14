@@ -1,96 +1,39 @@
-# Undertale Dialogue Generator (pour OBS)
+# Undertale OBS Dialog
 
-Ce projet permet d’afficher des dialogues à la *Undertale* dans OBS via la **source Navigateur Web**, avec un **panel de contrôle** pour gérer les émotions et la file d'attente des répliques.
+Un panneau de contrôle local pour afficher dans OBS des dialogues animés avec le catalogue du [Text Box Generator de Demirramon](https://www.demirramon.com/generators/undertale_text_box_generator).
 
-![image](https://github.com/user-attachments/assets/35f21bd5-8d6f-4f81-b3e7-143e0784a809)
+## Fonctionnalités
 
----
+- catalogue dynamique complet : catégories, univers, personnages et expressions publiques ;
+- police, casse, astérisque et sprite propres à chaque personnage ;
+- animation lettre par lettre, son de voix et pauses sur la ponctuation ;
+- file d’attente, pause, reprise, suppression et passage manuel au dialogue suivant ;
+- rendu local calibré sur la sortie native `578 × 152` ;
+- remplacement automatique de la dernière frame par la PNG officielle du moteur de Demirramon, sans recompression ;
+- repli automatique sur le rendu local si le moteur distant est temporairement indisponible.
 
-## 🚀 Installation
-
-### 1. Cloner le projet
-
-```bash
-git clone https://github.com/ImSakushi/undertale-obs-dialog.git
-cd undertale-obs-dialog
-```
-
-### 2. Installer les dépendances
+## Installation
 
 ```bash
 npm install
-```
-
-### 3. Lancer le serveur
-
-```bash
 npm start
 ```
 
-Cela démarre le serveur local sur `http://localhost:3000`.
+Le panneau de contrôle s’ouvre sur <http://127.0.0.1:3000/control.html>.
 
----
+## Configuration OBS
 
-## 🎥 Intégration dans OBS
+Ajoute une source **Navigateur** avec :
 
-1. **Ajouter une source "Navigateur" dans OBS**
-2. Donner un nom à la source (ex: `UndertaleDialogue`)
-3. Dans l'URL, entrez :
+- URL : `http://127.0.0.1:3000/display.html`
+- largeur : `640`
+- hauteur : `200`
+- arrière-plan transparent activé.
 
-```
-http://localhost:3000/display.html
-```
+La textbox conserve ses pixels natifs et se place à 20 px du bord gauche et du bas. La touche `&` depuis l’affichage passe au dialogue suivant.
 
-4. Définir la **largeur à 640** et la **hauteur à 200** (ou plus selon vos besoins)
-5. Cochez "Arrière-plan transparent" si vous le souhaitez
+## Connexion au moteur officiel
 
-> 💡 Vous pouvez ajuster l’emplacement de la boîte de dialogue comme vous le voulez dans OBS.
+Le catalogue, les aperçus de sprites et la frame finale sont chargés depuis Demirramon. Une connexion Internet est donc nécessaire pour parcourir tous les personnages et obtenir la frame officielle exacte. Les dialogues déjà envoyés continuent à disposer du rendu animé local en cas de panne ponctuelle.
 
----
-
-## 🕹️ Utiliser le panneau de contrôle
-
-Ouvrez dans votre navigateur cette adresse :
-
-```
-http://localhost:3000/control.html
-```
-
-Depuis cette interface, vous pouvez :
-
-* Choisir une **émotion** (image de Sans)
-* Écrire un **texte de dialogue**
-* L’**ajouter à la file**
-* Passer au dialogue suivant (`Suivant`)
-* Mettre en **pause** / **reprendre**
-* **Vider** toute la file
-* Supprimer individuellement des répliques
-
----
-
-## 🧠 Raccourcis clavier
-
-* Sur OBS (ou `display.html`) :
-
-  * Appuyez sur la touche `&` (touche 1 en AZERTY) pour passer au dialogue suivant.
-
----
-
-## 📁 Structure du projet
-
-```text
-utdialogtest/
-├── public/
-│   ├── control.html     # Panneau de contrôle pour gérer les dialogues
-│   ├── display.html     # Affichage OBS
-│   ├── *.png            # Images des émotions de Sans
-│   ├── voice_sans.mp3   # Effet sonore à chaque lettre
-│   └── sans.woff2       # Police pixel style Undertale
-├── server.js            # Serveur Node.js (Express + Socket.io)
-└── package.json         # Configuration du projet
-```
-
-## 🛠️ Dépendances
-
-* [express](https://www.npmjs.com/package/express)
-* [socket.io](https://www.npmjs.com/package/socket.io)
+Les sprites Undertale/Deltarune restent la propriété de leurs auteurs respectifs. Les polices pixel incluses proviennent des ressources référencées par le Text Box Generator.
