@@ -189,13 +189,7 @@ async function renderWithDemirramon(dialogue) {
   }
 }
 
-function requestOfficialRender(id, dialogue) {
-  renderWithDemirramon(dialogue).then(rendered => {
-    if (rendered) io.emit('dialogue-rendered', { id, ...rendered });
-  });
-}
-
-function sendNext() {
+async function sendNext() {
   if (paused) return;
 
   if (queue.length === 0) {
@@ -209,10 +203,15 @@ function sendNext() {
   const dialogue = queue.shift();
   const id = ++dialogueSequence;
   isDisplayed = true;
-  console.log(`Affichage : [${dialogue.characterName || dialogue.expr || dialogue.character}] ${dialogue.text}`);
-  io.emit('dialogue', { id, ...dialogue });
   io.emit('queueUpdated', queue);
-  requestOfficialRender(id, dialogue);
+
+  // Le rendu officiel est obtenu AVANT l'affichage : le client anime directement
+  // cette image, il n'y a donc jamais de bascule de mise en page à la fin.
+  const rendered = await renderWithDemirramon(dialogue);
+  if (id !== dialogueSequence) return;
+
+  console.log(`Affichage : [${dialogue.characterName || dialogue.expr || dialogue.character}] ${dialogue.text}${rendered ? '' : ' (rendu local de secours)'}`);
+  io.emit('dialogue', { id, ...dialogue, official: rendered ? rendered.image : null });
 }
 
 io.on('connection', socket => {

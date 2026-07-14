@@ -44,6 +44,21 @@
 
     .undertale-dialogue.is-visible { display: block; }
 
+    /* Mode principal : le typewriter révèle directement le rendu du moteur officiel. */
+    .official-canvas {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      display: none;
+      width: 578px;
+      height: 152px;
+      image-rendering: pixelated;
+    }
+
+    .undertale-dialogue.is-official .official-canvas { display: block; }
+    .undertale-dialogue.is-official .fallback-render { visibility: hidden; }
+
+    /* Mode de secours (moteur officiel injoignable) : rendu HTML calibré. */
     .fallback-render {
       position: absolute;
       inset: 0;
@@ -80,40 +95,32 @@
       transform: scale(2);
     }
 
+    /* Métriques calquées sur le moteur officiel (taille 2) : astérisque à x=145,
+       texte à x=174, interligne 36px, limite de wrap à x=572. La taille de police
+       et les espacements par famille sont appliqués par le script. */
     .text-layer {
       position: absolute;
-      top: 12px;
-      left: 138px;
+      top: 8px;
+      left: 174px;
       display: block;
-      width: 520px;
-      height: 116px;
-      min-height: 0;
-      padding: 0 0 0 40px;
-      overflow: hidden;
-      font: 33px/40px DTM, monospace;
-      letter-spacing: 0;
-      text-indent: -40px;
+      width: 398px;
+      font: 32px/36px DTM, monospace;
       white-space: pre-wrap;
-      transform: scale(.8, .9);
-      transform-origin: top left;
+      overflow-wrap: break-word;
     }
 
-    .asterisk::after { content: " "; }
+    .undertale-dialogue.no-asterisk .text-layer {
+      left: 145px;
+      width: 427px;
+    }
 
-    .official-render {
+    .dialogue-paragraph { position: relative; }
+
+    .asterisk {
       position: absolute;
-      inset: 0;
-      z-index: 2;
-      display: block;
-      width: 578px;
-      height: 152px;
-      opacity: 0;
-      object-fit: fill;
-      pointer-events: none;
-      image-rendering: pixelated;
+      top: 0;
+      left: -29px;
     }
-
-    .undertale-dialogue.is-official .official-render { opacity: 1; }
   </style>
 </head>
 <body>
@@ -122,46 +129,73 @@
       <div class="sprite-slot">
         <img class="avatar legacy" src="img/sans-normal.png" alt="">
       </div>
-      <div class="text-layer">
-        <span class="asterisk">*</span><span id="textbox"></span>
-      </div>
+      <!-- Tout sur une ligne : .text-layer est en pre-wrap, le moindre espace inter-balise serait rendu. -->
+      <div class="text-layer"><div id="textbox"></div></div>
     </div>
-    <img class="official-render" alt="">
+    <canvas class="official-canvas" width="578" height="152"></canvas>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const SPEED = 50;
-    const MAX_TEXT_WIDTH = 480;
     const MAX_LINES = 3;
+    const LINE_HEIGHT = 36;
     const PAUSE_CHARACTERS = new Set([',', '!', '?']);
+
+    // Géométrie du rendu officiel (taille 2, 578×152) mesurée sur le moteur.
+    const OFFICIAL = {
+      width: 578,
+      height: 152,
+      asteriskLeft: 145,
+      textLeft: 174,
+      textLeftNoAsterisk: 145,
+      textRight: 572,
+      zoneTop: 8,
+      zoneBottom: 146
+    };
 
     const container = document.querySelector('.undertale-dialogue');
     const avatar = container.querySelector('.avatar');
-    const asterisk = container.querySelector('.asterisk');
     const textLayer = container.querySelector('.text-layer');
     const box = document.getElementById('textbox');
-    const officialRender = container.querySelector('.official-render');
+    const officialCanvas = container.querySelector('.official-canvas');
+    const officialContext = officialCanvas.getContext('2d', { willReadFrequently: true });
     const voice = new Audio('voice_sans.mp3');
+
+    officialContext.imageSmoothingEnabled = false;
 
     let currentDialogueId = null;
     let sequence = 0;
     let typing = false;
-    let officialReady = false;
 
     function isLegacyPapyrus(dialogue) {
       return String(dialogue.expr || '').split('/').pop().startsWith('papyrus-');
     }
 
-    function fontFamilyFor(code) {
+    // Tailles/espacements mesurés sur le moteur officiel (rendu taille 2) :
+    // sans = TTF 32px + 2px entre lettres, +2px sur les espaces ;
+    // papyrus = TTF 32px, -2px sur les espaces ;
+    // determination (monospace) = avance moteur 16px, soit TTF 26.6667px.
+    // inkTop = ordonnée du haut de l'encre du glyphe de référence sur la 1re ligne.
+    const FONT_METRICS = {
+      sans: { family: 'UndertaleSans, DTM, monospace', size: '32px', letterSpacing: '2px', wordSpacing: '2px', referenceGlyph: 'm', inkTop: 30 },
+      papyrus: { family: 'UndertalePapyrus, DTM, monospace', size: '32px', letterSpacing: '0px', wordSpacing: '-2px', referenceGlyph: 'M', inkTop: 26 },
+      wingdings: { family: 'UndertaleWingdings, DTM, monospace', size: '32px', letterSpacing: '0px', wordSpacing: '0px', referenceGlyph: 'M', inkTop: 30 },
+      earthbound: { family: 'Earthbound, DTM, monospace', size: '32px', letterSpacing: '0px', wordSpacing: '0px', referenceGlyph: 'm', inkTop: 30 },
+      ubuntu: { family: 'UbuntuPixel, DTM, monospace', size: '32px', letterSpacing: '0px', wordSpacing: '0px', referenceGlyph: 'm', inkTop: 30 },
+      extended: { family: 'DTMExtended, DTM, monospace', size: '26.6667px', letterSpacing: '0px', wordSpacing: '0px', referenceGlyph: 'm', inkTop: 32 },
+      determination: { family: 'DTM, monospace', size: '26.6667px', letterSpacing: '0px', wordSpacing: '0px', referenceGlyph: 'm', inkTop: 32 }
+    };
+
+    function fontMetricsFor(code) {
       const value = String(code || 'determination').toLocaleLowerCase('en');
-      if (value.includes('papyrus')) return 'UndertalePapyrus, DTM, monospace';
-      if (value.includes('wing')) return 'UndertaleWingdings, DTM, monospace';
-      if (value.includes('sans')) return 'UndertaleSans, DTM, monospace';
-      if (value.includes('earth') || value.includes('ebmain')) return 'Earthbound, DTM, monospace';
-      if (value.includes('ubuntu')) return 'UbuntuPixel, DTM, monospace';
-      if (value.includes('extended') || value.includes('determination-ex')) return 'DTMExtended, DTM, monospace';
-      return 'DTM, monospace';
+      if (value.includes('papyrus')) return FONT_METRICS.papyrus;
+      if (value.includes('wing')) return FONT_METRICS.wingdings;
+      if (value.includes('sans')) return FONT_METRICS.sans;
+      if (value.includes('earth') || value.includes('ebmain')) return FONT_METRICS.earthbound;
+      if (value.includes('ubuntu')) return FONT_METRICS.ubuntu;
+      if (value.includes('extended') || value.includes('determination-ex')) return FONT_METRICS.extended;
+      return FONT_METRICS.determination;
     }
 
     function titleCase(value) {
@@ -176,65 +210,22 @@
       return value;
     }
 
-    function measureTextWidth(text) {
-      const canvas = measureTextWidth.canvas || (measureTextWidth.canvas = document.createElement('canvas'));
-      const context = canvas.getContext('2d');
-      const style = getComputedStyle(textLayer);
-      context.font = `${style.fontSize} ${style.fontFamily}`;
-      return context.measureText(text).width;
+    function ensureFontsLoaded(metrics) {
+      if (!document.fonts) return Promise.resolve();
+      const loads = metrics.family
+        .split(',')
+        .map(family => family.trim())
+        .filter(family => family && family !== 'monospace')
+        .map(family => document.fonts.load(`${metrics.size} ${family}`).catch(() => {}));
+      return Promise.all(loads);
     }
 
-    function splitLongWord(word, maxWidth) {
-      const chunks = [];
-      let chunk = '';
-
-      for (const character of word) {
-        const candidate = chunk + character;
-        if (chunk && measureTextWidth(candidate) > maxWidth) {
-          chunks.push(chunk);
-          chunk = character;
-        } else {
-          chunk = candidate;
-        }
+    function splitCharacters(text) {
+      if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+        const segmenter = new Intl.Segmenter('fr', { granularity: 'grapheme' });
+        return Array.from(segmenter.segment(text), part => part.segment);
       }
-
-      if (chunk) chunks.push(chunk);
-      return chunks;
-    }
-
-    function wrapParagraph(paragraph, maxWidth) {
-      if (!paragraph.trim()) return [''];
-
-      const words = paragraph.trim().split(/\s+/);
-      const lines = [];
-      let line = '';
-
-      for (const originalWord of words) {
-        const pieces = measureTextWidth(originalWord) > maxWidth
-          ? splitLongWord(originalWord, maxWidth)
-          : [originalWord];
-
-        for (const word of pieces) {
-          const candidate = line ? `${line} ${word}` : word;
-          if (!line || measureTextWidth(candidate) <= maxWidth) {
-            line = candidate;
-          } else {
-            lines.push(line);
-            line = word;
-          }
-        }
-      }
-
-      if (line) lines.push(line);
-      return lines;
-    }
-
-    function wrapText(text) {
-      return text
-        .split(/\r?\n/)
-        .flatMap(paragraph => wrapParagraph(paragraph, MAX_TEXT_WIDTH))
-        .slice(0, MAX_LINES)
-        .join('\n');
+      return Array.from(text);
     }
 
     function playBeep() {
@@ -247,74 +238,372 @@
       return new Promise(resolve => setTimeout(resolve, milliseconds));
     }
 
-    function showOfficialRenderIfReady() {
-      if (!typing && officialReady) container.classList.add('is-official');
+    /* ------------------------------------------------------------------ */
+    /* Mode principal : révélation progressive du rendu officiel.          */
+    /* ------------------------------------------------------------------ */
+
+    // Mesureur d'avances : avec les métriques calibrées, les avances TTF
+    // correspondent exactement (au pixel) à celles du moteur officiel.
+    function advanceMeasurer(metrics) {
+      const context = advanceMeasurer.context || (advanceMeasurer.context = document.createElement('canvas').getContext('2d'));
+      context.font = `${metrics.size} ${metrics.family}`;
+      const letterSpacing = parseFloat(metrics.letterSpacing) || 0;
+      const wordSpacing = parseFloat(metrics.wordSpacing) || 0;
+      const cache = new Map();
+      const measure = character => {
+        if (!cache.has(character)) cache.set(character, context.measureText(character));
+        return cache.get(character);
+      };
+      return {
+        advance: character => measure(character).width + letterSpacing + (character === ' ' ? wordSpacing : 0),
+        inkRight: character => measure(character).actualBoundingBoxRight
+      };
+    }
+
+    // Détecte les lignes de texte (encre) dans le rendu officiel.
+    function analyzeOfficialLines(data, width) {
+      const bright = (x, y) => {
+        const i = (y * width + x) * 4;
+        return data[i] > 120 && data[i + 1] > 120 && data[i + 2] > 120;
+      };
+
+      const fragments = [];
+      let current = null;
+      for (let y = OFFICIAL.zoneTop; y < OFFICIAL.zoneBottom; y++) {
+        let has = false;
+        for (let x = OFFICIAL.asteriskLeft; x < OFFICIAL.textRight; x++) {
+          if (bright(x, y)) { has = true; break; }
+        }
+        if (has) {
+          if (!current) current = { top: y, bottom: y };
+          else current.bottom = y;
+        } else if (current) {
+          fragments.push(current);
+          current = null;
+        }
+      }
+      if (current) fragments.push(current);
+
+      // Fusionne les fragments proches (point des i, accents) ; l'écart d'encre
+      // entre deux vraies lignes est d'au moins 8px.
+      const lines = [];
+      for (const fragment of fragments) {
+        const previous = lines[lines.length - 1];
+        if (previous && fragment.top - previous.bottom < 6) previous.bottom = fragment.bottom;
+        else lines.push(fragment);
+      }
+
+      for (const line of lines) {
+        let left = Infinity;
+        let right = -1;
+        for (let x = OFFICIAL.asteriskLeft; x < OFFICIAL.textRight; x++) {
+          for (let y = line.top; y <= line.bottom; y++) {
+            if (bright(x, y)) {
+              if (x < left) left = x;
+              if (x > right) right = x;
+              break;
+            }
+          }
+        }
+        line.left = left;
+        line.right = right;
+      }
+
+      return lines.filter(line => line.right >= line.left);
+    }
+
+    // Choisit les caractères qui composent une ligne : parmi les fins de mot
+    // candidates, celle dont la largeur d'encre prédite colle au bord droit
+    // mesuré dans l'image. Les candidates diffèrent d'au moins un mot, la
+    // marge d'erreur est donc très confortable.
+    function chooseLineChars(characters, targetRight, measurer) {
+      const candidates = [];
+      let pen = 0;
+      for (let i = 0; i < characters.length; i++) {
+        const character = characters[i];
+        const next = characters[i + 1];
+        if (character !== ' ' && (next === ' ' || next === undefined)) {
+          candidates.push({ count: i + 1, diff: Math.abs(pen + measurer.inkRight(character) - targetRight) });
+        }
+        pen += measurer.advance(character);
+      }
+
+      let best = null;
+      for (const candidate of candidates) {
+        if (!best || candidate.diff < best.diff) best = candidate;
+      }
+
+      if (!best || best.diff > 10) {
+        // Mot plus long que la ligne : repli caractère par caractère.
+        pen = 0;
+        for (let i = 0; i < characters.length; i++) {
+          const character = characters[i];
+          if (character !== ' ') {
+            const diff = Math.abs(pen + measurer.inkRight(character) - targetRight);
+            if (!best || diff < best.diff) best = { count: i + 1, diff };
+          }
+          pen += measurer.advance(character);
+        }
+      }
+
+      if (!best) return { count: characters.length, skip: 0 };
+
+      let skip = 0;
+      while (characters[best.count + skip] === ' ') skip++;
+      return { count: best.count, skip };
+    }
+
+    // Associe chaque caractère du texte à sa position exacte dans le rendu
+    // officiel (ligne mesurée + avances calibrées) pour piloter la révélation.
+    function planOfficialReveal(text, lines, metrics, showAsterisk) {
+      const measurer = advanceMeasurer(metrics);
+      const lineX = showAsterisk ? OFFICIAL.textLeft : OFFICIAL.textLeftNoAsterisk;
+      const steps = [];
+      let lineIndex = 0;
+
+      for (const paragraphText of text.split(/\r?\n/)) {
+        if (lineIndex >= lines.length) break;
+
+        let remaining = splitCharacters(paragraphText);
+        while (remaining.length && remaining[0] === ' ') remaining.shift();
+
+        if (!remaining.length) {
+          if (showAsterisk) steps.push({ lineIndex, from: 0, to: 0, character: '', asterisk: true });
+          lineIndex++;
+          continue;
+        }
+
+        let paragraphStart = true;
+        while (remaining.length && lineIndex < lines.length) {
+          const line = lines[lineIndex];
+          const chosen = chooseLineChars(remaining, line.right - lineX, measurer);
+
+          let pen = 0;
+          for (let i = 0; i < chosen.count; i++) {
+            const character = remaining[i];
+            const from = lineX + pen;
+            pen += measurer.advance(character);
+            steps.push({
+              lineIndex,
+              from,
+              to: lineX + pen,
+              character,
+              asterisk: showAsterisk && paragraphStart && i === 0
+            });
+          }
+
+          remaining = remaining.slice(chosen.count + chosen.skip);
+          paragraphStart = false;
+          lineIndex++;
+        }
+      }
+
+      return steps;
+    }
+
+    async function playOfficialTypewriter(dialogue, image, token, options) {
+      const metrics = fontMetricsFor(dialogue.font || (isLegacyPapyrus(dialogue) ? 'papyrus' : 'sans'));
+      await ensureFontsLoaded(metrics);
+      if (token !== sequence) return;
+
+      // Source normalisée 578×152 : toutes les coordonnées (analyse et blits)
+      // vivent dans ce repère, quel que soit la taille native de l'image.
+      const source = document.createElement('canvas');
+      source.width = OFFICIAL.width;
+      source.height = OFFICIAL.height;
+      const sourceContext = source.getContext('2d', { willReadFrequently: true });
+      sourceContext.imageSmoothingEnabled = false;
+      sourceContext.drawImage(image, 0, 0, OFFICIAL.width, OFFICIAL.height);
+
+      const snapshot = sourceContext.getImageData(0, 0, OFFICIAL.width, OFFICIAL.height);
+      const lines = analyzeOfficialLines(snapshot.data, OFFICIAL.width);
+      const text = transformDialogue(dialogue.text, options.textTransform);
+      const steps = planOfficialReveal(text, lines, metrics, options.showAsterisk);
+
+      // Image complète, puis zone de texte recouverte par la couleur de fond
+      // du cadre : seuls le décor et le sprite restent visibles au départ.
+      officialContext.clearRect(0, 0, OFFICIAL.width, OFFICIAL.height);
+      officialContext.drawImage(source, 0, 0);
+      const sample = (12 * OFFICIAL.width + 560) * 4;
+      officialContext.fillStyle = `rgb(${snapshot.data[sample]}, ${snapshot.data[sample + 1]}, ${snapshot.data[sample + 2]})`;
+      officialContext.fillRect(OFFICIAL.asteriskLeft, OFFICIAL.zoneTop, OFFICIAL.textRight - OFFICIAL.asteriskLeft, OFFICIAL.zoneBottom - OFFICIAL.zoneTop);
+
+      container.classList.add('is-official', 'is-visible');
+
+      const blit = (x, y, width, height) => {
+        officialContext.drawImage(source, x, y, width, height, x, y, width, height);
+      };
+
+      for (const step of steps) {
+        if (token !== sequence) return;
+        const line = lines[step.lineIndex];
+        // Les bornes d'encre mesurées couvrent déjà tout (astérisque, jambages) ;
+        // un débord supérieur révélerait la ligne voisine.
+        const bandTop = Math.max(OFFICIAL.zoneTop, line.top - 2);
+        const bandHeight = Math.min(OFFICIAL.zoneBottom, line.bottom + 3) - bandTop;
+
+        if (step.asterisk) {
+          blit(OFFICIAL.asteriskLeft, bandTop, OFFICIAL.textLeft - OFFICIAL.asteriskLeft - 4, bandHeight);
+        }
+        if (step.character) {
+          const from = Math.max(OFFICIAL.asteriskLeft, Math.floor(step.from) - 2);
+          blit(from, bandTop, Math.ceil(step.to) - from, bandHeight);
+          playBeep();
+          await delay(PAUSE_CHARACTERS.has(step.character) ? SPEED * 8 : SPEED);
+        } else {
+          await delay(SPEED);
+        }
+      }
+
+      if (token !== sequence) return;
+      // Dernière passe : l'image officielle intégrale, à l'identique.
+      officialContext.drawImage(source, 0, 0);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Mode de secours : rendu HTML calibré sur les métriques du moteur.   */
+    /* ------------------------------------------------------------------ */
+
+    // Cale verticalement la couche texte pour que l'encre de la 1re ligne tombe
+    // au même pixel que dans le rendu officiel, quelle que soit la police.
+    function alignTextLayer(metrics) {
+      const context = alignTextLayer.context || (alignTextLayer.context = document.createElement('canvas').getContext('2d'));
+      context.font = `${metrics.size} ${metrics.family}`;
+      const measured = context.measureText(metrics.referenceGlyph);
+      const ascent = measured.fontBoundingBoxAscent || parseFloat(metrics.size) * 0.8;
+      const descent = measured.fontBoundingBoxDescent || parseFloat(metrics.size) * 0.2;
+      const baseline = (LINE_HEIGHT + ascent - descent) / 2;
+      const inkAscent = measured.actualBoundingBoxAscent || ascent;
+      textLayer.style.top = `${Math.round(metrics.inkTop - baseline + inkAscent)}px`;
+    }
+
+    // Construit le layout final complet (spans invisibles) : un bloc par ligne
+    // saisie, avec son astérisque hors flux comme dans le moteur officiel.
+    // Retourne les étapes de révélation ; l'astérisque apparaît avec le premier
+    // caractère de son paragraphe.
+    function buildFrozenLayout(text, showAsterisk) {
+      box.textContent = '';
+      const steps = [];
+
+      for (const paragraphText of text.split(/\r?\n/)) {
+        const paragraph = document.createElement('div');
+        paragraph.className = 'dialogue-paragraph';
+        const pending = [];
+
+        if (showAsterisk) {
+          const star = document.createElement('span');
+          star.className = 'asterisk';
+          star.textContent = '*';
+          star.style.visibility = 'hidden';
+          paragraph.append(star);
+          pending.push(star);
+        }
+
+        for (const character of splitCharacters(paragraphText)) {
+          const span = document.createElement('span');
+          span.textContent = character;
+          span.style.visibility = 'hidden';
+          paragraph.append(span);
+          steps.push({ elements: [...pending.splice(0), span], character });
+        }
+
+        if (!paragraph.querySelector('span:not(.asterisk)')) {
+          paragraph.append(String.fromCharCode(0x200b));
+          if (pending.length) steps.push({ elements: pending.splice(0), character: '' });
+        }
+
+        box.append(paragraph);
+      }
+
+      if (!steps.length) return steps;
+
+      // Troncature au-delà de MAX_LINES, d'après la géométrie réellement calculée.
+      const anchorOf = step => step.elements[step.elements.length - 1];
+      const firstTop = anchorOf(steps[0]).getBoundingClientRect().top;
+      const cutIndex = steps.findIndex(
+        step => Math.round((anchorOf(step).getBoundingClientRect().top - firstTop) / LINE_HEIGHT) >= MAX_LINES
+      );
+      if (cutIndex !== -1) {
+        for (const step of steps.splice(cutIndex)) {
+          for (const element of step.elements) element.remove();
+        }
+      }
+
+      return steps;
+    }
+
+    async function playFallbackTypewriter(dialogue, token, options) {
+      const legacyPapyrus = isLegacyPapyrus(dialogue);
+      const isLegacy = !dialogue.previewUrl;
+
+      container.classList.remove('is-official');
+      avatar.classList.toggle('legacy', isLegacy);
+      avatar.src = dialogue.previewUrl || `${dialogue.expr}.png`;
+      avatar.alt = dialogue.characterName || '';
+      container.classList.toggle('no-asterisk', !options.showAsterisk);
+      const metrics = fontMetricsFor(dialogue.font || (legacyPapyrus ? 'papyrus' : 'sans'));
+      textLayer.style.fontFamily = metrics.family;
+      textLayer.style.fontSize = metrics.size;
+      textLayer.style.letterSpacing = metrics.letterSpacing;
+      textLayer.style.wordSpacing = metrics.wordSpacing;
+      box.textContent = '';
+
+      await ensureFontsLoaded(metrics);
+      if (token !== sequence) return;
+      alignTextLayer(metrics);
+
+      // Layout final construit en entier avant l'animation : le typewriter ne fait
+      // que révéler des caractères déjà positionnés, sans jamais reformater.
+      const steps = buildFrozenLayout(transformDialogue(dialogue.text, options.textTransform), options.showAsterisk);
+      container.classList.add('is-visible');
+      for (const step of steps) {
+        if (token !== sequence) return;
+        for (const element of step.elements) element.style.visibility = 'visible';
+        playBeep();
+        await delay(PAUSE_CHARACTERS.has(step.character) ? SPEED * 8 : SPEED);
+      }
+    }
+
+    /* ------------------------------------------------------------------ */
+
+    function decodeOfficialImage(dataUrl) {
+      const image = new Image();
+      image.src = dataUrl;
+      return image.decode().then(() => image).catch(() => null);
     }
 
     async function showDialogue(dialogue) {
       const token = ++sequence;
       const legacyPapyrus = isLegacyPapyrus(dialogue);
-      const isLegacy = !dialogue.previewUrl;
-      const textTransform = dialogue.textTransform || (legacyPapyrus ? 'uppercase' : 'lowercase');
-      const showAsterisk = typeof dialogue.asterisk === 'boolean' ? dialogue.asterisk : !legacyPapyrus;
+      const options = {
+        textTransform: dialogue.textTransform || (legacyPapyrus ? 'uppercase' : 'lowercase'),
+        showAsterisk: typeof dialogue.asterisk === 'boolean' ? dialogue.asterisk : !legacyPapyrus
+      };
 
       currentDialogueId = dialogue.id;
       typing = true;
-      officialReady = false;
-      container.classList.remove('is-official');
-      container.classList.add('is-visible');
-      officialRender.removeAttribute('src');
-      avatar.classList.toggle('legacy', isLegacy);
-      avatar.src = dialogue.previewUrl || `${dialogue.expr}.png`;
-      avatar.alt = dialogue.characterName || '';
-      asterisk.hidden = !showAsterisk;
-      textLayer.style.fontFamily = fontFamilyFor(dialogue.font || (legacyPapyrus ? 'papyrus' : 'sans'));
-      box.textContent = '';
 
-      if (document.fonts && document.fonts.ready) await document.fonts.ready;
+      const image = dialogue.official ? await decodeOfficialImage(dialogue.official) : null;
       if (token !== sequence) return;
 
-      const renderedText = wrapText(transformDialogue(dialogue.text, textTransform));
-      for (const character of renderedText) {
-        if (token !== sequence) return;
-        box.textContent += character;
-        playBeep();
-        await delay(PAUSE_CHARACTERS.has(character) ? SPEED * 8 : SPEED);
-      }
+      if (image) await playOfficialTypewriter(dialogue, image, token, options);
+      else await playFallbackTypewriter(dialogue, token, options);
 
       if (token !== sequence) return;
       typing = false;
-      showOfficialRenderIfReady();
-    }
-
-    function loadOfficialRender({ id, image }) {
-      if (id !== currentDialogueId || !image) return;
-
-      const preload = new Image();
-      preload.src = image;
-      preload.decode()
-        .catch(() => {})
-        .then(() => {
-          if (id !== currentDialogueId) return;
-          officialRender.src = image;
-          officialReady = true;
-          showOfficialRenderIfReady();
-        });
     }
 
     function hideDialogue() {
       sequence += 1;
       currentDialogueId = null;
       typing = false;
-      officialReady = false;
       box.textContent = '';
-      officialRender.removeAttribute('src');
+      officialContext.clearRect(0, 0, OFFICIAL.width, OFFICIAL.height);
       container.classList.remove('is-visible', 'is-official');
     }
 
     const socket = io();
     socket.on('dialogue', showDialogue);
-    socket.on('dialogue-rendered', loadOfficialRender);
     socket.on('dialogue-hide', hideDialogue);
 
     window.addEventListener('keydown', event => {
