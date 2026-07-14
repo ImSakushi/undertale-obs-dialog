@@ -4,7 +4,7 @@
   "description": "Animated Demirramon-compatible Undertale dialogue boxes for OBS",
   "main": "server.js",
   "scripts": {
-    "check": "node --check server.js",
+    "check": "node --check server.js && node --check public/voice-map.js",
     "test": "npm run check",
     "start": "node server.js"
   },

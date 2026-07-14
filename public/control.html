@@ -545,7 +545,7 @@
     function spritePreviewUrl(character, sprite) {
       const metadata = character.sprites?.textbox?.[sprite];
       const version = metadata?.last_edit ? `&v=${encodeURIComponent(metadata.last_edit.replace(' ', '_'))}` : '';
-      return `/api/sprite-preview.png?char=${encodeURIComponent(character.codename)}&exp=${encodeURIComponent(sprite)}&color=colored${version}`;
+      return `/api/sprite-preview.png?char=${encodeURIComponent(character.codename)}&exp=${encodeURIComponent(sprite)}&color=ffffff${version}`;
     }
 
     function availableSprites(character) {

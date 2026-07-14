@@ -125,7 +125,7 @@ function buildOfficialParams(dialogue) {
     margin: false,
     size: 2,
     color: {
-      sprite: 'colored',
+      sprite: 'ffffff',
       box: 'ffffff',
       asterisk: ['ffffff', 'ffffff', 'ffffff'],
       text: 'ffffff'

@@ -12,6 +12,8 @@ Un panneau de contrôle local pour afficher dans OBS des dialogues animés avec 
 - remplacement automatique de la dernière frame par la PNG officielle du moteur de Demirramon, sans recompression ;
 - repli automatique sur le rendu local si le moteur distant est temporairement indisponible.
 
+Les voix canoniques d'UNDERTALE et DELTARUNE sont associées à chaque personnage. Les ressources et la méthode d'extraction sont documentées dans `public/voices/README.md`.
+
 ## Installation
 
 ```bash
