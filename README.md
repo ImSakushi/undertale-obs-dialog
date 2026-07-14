@@ -21,6 +21,13 @@ npm start
 
 Le panneau de contrôle s’ouvre sur <http://127.0.0.1:3000/control.html>.
 
+## Démarrage rapide sous Windows
+
+Double-clique sur `start-web.bat` pour lancer le panneau sans taper de commande.
+Le navigateur s’ouvre automatiquement et la fenêtre ouverte garde le serveur actif.
+
+Si tu veux lancer le serveur sans fenêtre visible, double-clique sur `start-web-silent.vbs`.
+
 ## Configuration OBS
 
 Ajoute une source **Navigateur** avec :
